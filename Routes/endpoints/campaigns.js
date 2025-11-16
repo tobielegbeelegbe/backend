@@ -8,6 +8,7 @@ const {
   updateCampaign ,
   deleteCampaign ,
   getCampaignByName ,
+  getCategory,
 } = require('../../Controllers/Campaign/CampaignController');
 
 
@@ -16,6 +17,7 @@ router.use(express.urlencoded({ extended: true }));
 
 // Routes
 router.get('/getall', getCampaigns);
+router.get('/getCategory', getCategory);
 router.get('/getcampaign/:id', getCampaignById);
 router.get('/searchCampaign/:name', getCampaignByName);
 router.post('/create', createCampaign);

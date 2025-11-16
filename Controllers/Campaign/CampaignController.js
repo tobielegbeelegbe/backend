@@ -9,6 +9,7 @@
 
 const pool = require('../../dbconnect');
 const crypto = require('crypto');
+const Campaign = require('../../Models/campaigns')
 
 
 
@@ -147,6 +148,27 @@ const updateCampaign  = async (req, res) => {
   }
 };
 
+const getCategory = async(req,res) =>
+{
+   try {
+      // Check if user exists
+      let campaign = await Campaign.getCategory();
+      console.log(campaign);
+      if (!campaign) {
+        return res.status(400).json({ msg: 'No Categories' });
+      }
+  
+      // Generate token
+      const payload = { campaign};
+      //const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+  
+      res.json({ msg: 'Category Loaded', campaign });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
+    }
+}
+
 // Delete Campaign by ID
 const deleteCampaign  = async (req, res) => {
   const { id } = req.params;
@@ -169,4 +191,5 @@ module.exports = {
   updateCampaign ,
   deleteCampaign ,
   getCampaignByName,
+  getCategory,
 };

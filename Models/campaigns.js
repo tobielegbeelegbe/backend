@@ -21,6 +21,13 @@ const getAllCampaigns = async (userId = null, status = null) => {
   return rows;
 };
 
+const getCategory = async () => {
+  let query = 'SELECT * FROM category';
+ 
+  const [rows] = await db.execute(query);
+  return rows;
+};
+
 // Get campaign by ID
 const getCampaignById = async (id) => {
   const [rows] = await db.execute('SELECT * FROM campaigns WHERE id = ?', [id]);
@@ -114,4 +121,5 @@ module.exports = {
   deleteCampaign,
   getCampaignsByUserId,
   getCampaignByName,
+  getCategory,
 };

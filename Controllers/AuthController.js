@@ -124,7 +124,6 @@ exports.updateDetails = async (req, res) => {
     let user = await User.updateDetails(id,first_name,last_name,username ,rUsername);
     
 
-
        res.status(200).json({ message: 'Updated successfully', id: user.id });
     
 
