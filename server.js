@@ -10,6 +10,7 @@
     const championRoute = require('./Routes/endpoints/champion');
     const followerRoute = require('./Routes/endpoints/follower');
     const walletRoute = require('./Routes/endpoints/wallets');
+    const splitBillRoute = require('./Routes/endpoints/splitbill');
     const notificationRoutes = require('./Routes/endpoints/notifications');
     
     const path = require('path');
@@ -18,6 +19,9 @@
     app.use(express.static(path.join(__dirname, 'public')));
 
     app.use('/users', userRoute);
+    app.use(express.static(path.join(__dirname, 'public')));
+
+    app.use('/splitBill', splitBillRoute);
     app.use(express.static(path.join(__dirname, 'public')));
 
     app.use('/auth', authRoute);
