@@ -1,4 +1,4 @@
-const Host = require('../../Models/Hosts');
+const Host = require('../../Models/hosts');
 
 exports.getHosts = async (req, res) => {
   try {
