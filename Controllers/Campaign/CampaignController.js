@@ -10,6 +10,8 @@
 const pool = require('../../dbconnect');
 const crypto = require('crypto');
 const Campaign = require('../../Models/campaigns')
+const Notify = require('../Notifications/NotifyController')
+const Host = require('../Host/HostController')
 
 
 
@@ -74,15 +76,17 @@ const getCampaignByName = async (req, res) => {
 // Create a new Campaign
 const createCampaign  = async (req, res) => {
   const con = await pool.getConnection();
-  const { title, description,startDate,endDate,amount,id } = req.body;
-  const CampaignId = crypto.randomUUID();
-  const currentDate = new Date();
+  const { title, description,startDate,endDate,amount,id,stakeholders,images } = req.body;
   const form = endDate.split('/')
   const day = +form[0];
   const month = +form[1];
   const year = +form[2];
-
   const convert = new Date(year,month-1,day);
+
+  stakeholder = JSON.parse(stakeholders);
+  hosts = stakeholder.length;
+  
+  console.log(stakeholder);
 
   if (!title || !description || !id) {
     return res.status(400).json({ error: 'Title, Description, and Amount are required' });
@@ -90,9 +94,22 @@ const createCampaign  = async (req, res) => {
   try {
     // In production: const hashedPassword = await bcrypt.hash(password, 10);
     
-      const sql = "INSERT INTO `campaigns`( `creator_id`, `title`, `description`,`start_date`, `end_date`, `goal_amount`, `current_amount`,`approved`,`created_at`) VALUES (?,?,?,?,?,?,?,?,?)";
-      const values = [id,title,description,new Date(startDate),convert,amount,0,false,currentDate]
+      const sql = "INSERT INTO `campaigns`( `creator_id`, `title`, `description`,`start_date`, `end_date`, `goal_amount`, `current_amount`,`approved`,`host`,`image`) VALUES (?,?,?,?,?,?,?,?,?,?)";
+      const values = [id,title,description,new Date(startDate),convert,amount,0,false,hosts,images]
       const result = await con.execute(sql,values);
+      
+     
+      
+      const message = 'You were added as a host to a new campaign';
+      const type = 'campaign'
+       for (const product of stakeholder) {
+        console.log(product.id);
+        console.log(result[0].insertId);
+        Host.createHost(product.id,result[0].insertId);
+        Notify.createNotification(product.id,message,type,result[0].insertId);
+    }
+  
+     
       
       res.status(200).json({ msg: 'Campaign Created successfully', id: result[0].insertId });
     
@@ -169,6 +186,51 @@ const getCategory = async(req,res) =>
     }
 }
 
+const stakeholderApproval = async(req,res) =>
+{
+  const { id } = req.params;
+
+   try {
+      // Check if user exists
+      let campaign = await Campaign.stakeholderApproval(id);
+      console.log(campaign);
+      if (!campaign) {
+        return res.status(400).json({ msg: 'No Categories' });
+      }
+  
+      // Generate token
+      const payload = {campaign};
+      //const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+  
+      res.json({ msg: 'Category Loaded', campaign });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
+    }
+}
+
+const getApprovalStatus = async(req,res) =>
+{
+  const { id } = req.params;
+  console.log(id);
+   try {
+      // Check if user exists
+      let campaign = await Campaign.getApproval(id);
+      if (!campaign) {
+        return res.status(400).json({ msg: 'No Categories' });
+      }
+  
+      // Generate token
+      const payload = {campaign};
+      //const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+  
+      res.json({ msg: 'Category Loaded', campaign });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
+    }
+}
+
 // Delete Campaign by ID
 const deleteCampaign  = async (req, res) => {
   const { id } = req.params;
@@ -192,4 +254,6 @@ module.exports = {
   deleteCampaign ,
   getCampaignByName,
   getCategory,
+  getApprovalStatus,
+  stakeholderApproval,
 };
