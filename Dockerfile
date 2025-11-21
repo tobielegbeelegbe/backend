@@ -1,24 +1,20 @@
-FROM node:18-alpine AS base
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
- 
-FROM base AS build
-WORKDIR /
+# Use a lightweight Node.js base image
+FROM node:20-alpine
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy package.json and package-lock.json (if present) to leverage Docker's caching
+COPY package*.json ./
+
+# Install application dependencies
+RUN npm install
+
+# Copy the rest of the application code
 COPY . .
-COPY package.json pnpm-lock.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-ENV NODE_ENV=production
-RUN pnpm run build
- 
-FROM base AS dokploy
-WORKDIR /
-ENV NODE_ENV=production
- 
-# Copy only the necessary files
-COPY --from=build /dist ./dist
-COPY --from=build /package.json ./package.json
-COPY --from=build /node_modules ./node_modules
- 
+
+# Expose the port your Node.js application listens on
 EXPOSE 3000
-CMD ["pnpm", "start"]
+
+# Command to run the application
+CMD [ "node", "server.js" ]
