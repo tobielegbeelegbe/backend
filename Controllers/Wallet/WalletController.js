@@ -26,10 +26,29 @@ exports.getWallets = async (req, res) => {
   }
 };
 
+
+exports.getUserWallet = async (userId) => {
+  try {
+    
+    
+    const wallet = await Wallet.getWallet(userId);
+    
+    if (wallet) {
+      
+      return wallet;
+    } else {
+      console.log('Wallet not found');
+    }
+  } catch (error) {
+    console.log(error.message);
+  }
+};
+
 // Get a wallet by userId
 exports.getWallet = async (req, res) => {
   try {
     const { userId } = req.params;
+    console.log(userId);
     const wallet = await Wallet.getWallet({ where: { userId } });
     if (wallet) {
       res.status(200).json(wallet);

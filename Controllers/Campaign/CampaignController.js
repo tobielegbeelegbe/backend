@@ -161,6 +161,9 @@ const createCampaign  = async (req, res) => {
   const convert = new Date(year,month-1,day);
   const converts = new Date(years,months-1,days);
 
+  console.log(convert);
+  console.log(converts);
+
   stakeholder = JSON.parse(stakeholders);
   hosts = stakeholder.length;
   

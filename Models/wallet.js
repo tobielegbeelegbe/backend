@@ -24,7 +24,7 @@ class Wallet {
 
     static async getWallet(id) {
         const [rows] = await pool.execute(
-            'SELECT * FROM wallets WHERE id = ?',
+            'SELECT * FROM wallets WHERE user_id = ?',
             [id]
         );
         return rows[0];

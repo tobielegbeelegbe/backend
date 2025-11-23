@@ -10,7 +10,8 @@ const Wallet = require("../Controllers/Wallet/WalletController")
 exports.createUser = async (req, res) => {
   const { email, password, phone } = req.body;
   
-  
+  phones = '+234' + phone;
+  console.log(phones);
 
   const code = generateVerificationCode();
 
@@ -21,14 +22,14 @@ exports.createUser = async (req, res) => {
   }
   try {
     
-    let test = await User.create(email, password, phone, code);
+    let test = await User.create(email, password, phones, code);
     
 
     if (test) {
       if (test) {
         console.log(code);
-        very.sendWhatsapp(phone, code);
-        res.json({ message: "Verification Code Sent to" + phone });
+        very.sendWhatsapp(phones, code);
+        res.json({ message: "Verification Code Sent to" + phones });
       }
     }
   } catch (err) {
@@ -63,19 +64,23 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({ msg: "Invalid Email or Phone" });
     }
 
-    console.log(user);
+    console.log(user.id);
 
     // Compare passwords
     const isMatch = await bcrypt.compare(password, user.password_hash);
-
+    
     if (!isMatch) {
       return res.status(400).json({ msg: "Incorrect Password" });
     }
+    console.log(isMatch);
+    let user_wallet = await Wallet.getUserWallet(user.id);
+
+    console.log(user_wallet)
 
     // Generate token
-    const payload = { user: user };
+    const payload = { user: user, wallet: user_wallet};
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: "2h",
     });
 
     res.status(200).json({ msg: "Logged in successfully", token });

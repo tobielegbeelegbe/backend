@@ -45,15 +45,15 @@ class User {
     }
 
     static async findByEmail(email) {
-        console.log(email);
-        console.log(pool);
+        //console.log(email);
+        //console.log(pool);
         
         const [rows] = await pool.execute(
             'SELECT * FROM users WHERE email = ?',
             [email]
         );
-        console.log(rows);
-        console.log(pool);
+        //console.log(rows[0]);
+       
         return rows[0];
     }
     
