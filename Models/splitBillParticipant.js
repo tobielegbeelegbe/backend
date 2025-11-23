@@ -75,6 +75,11 @@ const SplitBillParticipant = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    balance_adjustment: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0,
+    },
     invite_code: {
       type: DataTypes.STRING(12),
       allowNull: true,

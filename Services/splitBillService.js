@@ -5,6 +5,7 @@ const {
   SplitBillParticipant,
   Payment,
   SplitBillActivity,
+  Refund,
 } = require("../Models");
 const { generateInviteCode } = require("../utils/codeGenerator");
 const AppError = require("../utils/AppError");
@@ -211,6 +212,21 @@ class SplitBillService {
 
       await this.computeAndSaveShares(bill.id, allParticipants, splitMethod, t);
 
+      await SplitBillActivity.create(
+        {
+          split_bill_id: bill.id,
+          actor_id: creatorId,
+          action_type: "created",
+          description: `Bill "${title}" created with ${totalParticipantsCount} participants`,
+          metadata: {
+            amount,
+            splitMethod,
+            participantCount: totalParticipantsCount,
+          },
+        },
+        { transaction: t }
+      );
+
       const completeBill = await SplitBill.findByPk(bill.id, {
         include: [
           {
@@ -223,166 +239,6 @@ class SplitBillService {
 
       return completeBill;
     });
-  }
-
-  static async computeAndSaveShares(
-    billId,
-    participants,
-    splitMethod,
-    transaction
-  ) {
-    const bill = await SplitBill.findByPk(billId, { transaction });
-    if (!bill) {
-      throw new AppError("Bill not found", 404);
-    }
-
-    const totalAmount = parseFloat(bill.amount);
-    const numParticipants = participants.length;
-
-    const dbParticipants = await SplitBillParticipant.findAll({
-      where: { split_bill_id: billId },
-      order: [
-        ["created_at", "ASC"],
-        ["id", "ASC"],
-      ],
-      transaction,
-    });
-
-    if (dbParticipants.length !== numParticipants) {
-      throw new AppError(
-        "Mismatch between input participants and DB rows",
-        500
-      );
-    }
-
-    const round2 = (v) => Math.round(v * 100) / 100;
-    const owedAmounts = new Array(numParticipants).fill(0.0);
-
-    switch (splitMethod) {
-      case "EVEN":
-        const base = Math.floor((totalAmount / numParticipants) * 100) / 100;
-        let sumBase = base * numParticipants;
-        let remainder = Math.round((totalAmount - sumBase) * 100);
-
-        for (let i = 0; i < numParticipants; i++) {
-          let centAdd = 0;
-          if (remainder > 0) {
-            centAdd = 1;
-            remainder--;
-          }
-          owedAmounts[i] = round2(base + centAdd / 100);
-        }
-
-        const totalComputed = owedAmounts.reduce((a, b) => a + b, 0);
-        const diff = round2(totalAmount - totalComputed);
-        if (Math.abs(diff) >= 0.01) {
-          owedAmounts[0] = round2(owedAmounts[0] + diff);
-        }
-        break;
-
-      case "MANUAL":
-        let manualSum = 0;
-        for (let i = 0; i < participants.length; i++) {
-          const p = participants[i];
-          if (typeof p.amount !== "number" || p.amount < 0) {
-            throw new AppError(
-              "Manual split requires valid amount for each participant",
-              400
-            );
-          }
-          owedAmounts[i] = round2(p.amount);
-          manualSum += owedAmounts[i];
-        }
-
-        const manualDiff = Math.abs(round2(manualSum) - round2(totalAmount));
-        if (manualDiff > 0.1) {
-          throw new AppError(
-            `Manual amounts sum to ${manualSum} but bill amount is ${totalAmount}`,
-            400
-          );
-        }
-
-        const totalManualComputed = owedAmounts.reduce((a, b) => a + b, 0);
-        const manualAdjust = round2(totalAmount - totalManualComputed);
-        if (Math.abs(manualAdjust) >= 0.01) {
-          owedAmounts[0] = round2(owedAmounts[0] + manualAdjust);
-        }
-        break;
-
-      case "PERCENTAGE":
-        let percentageSum = 0;
-        for (let i = 0; i < participants.length; i++) {
-          const p = participants[i];
-          if (
-            typeof p.percentage !== "number" ||
-            p.percentage < 0 ||
-            p.percentage > 100
-          ) {
-            throw new AppError(
-              "Percentage split requires valid percentage (0-100) for each participant",
-              400
-            );
-          }
-          percentageSum += p.percentage;
-        }
-
-        if (Math.abs(percentageSum - 100) > 0.01) {
-          throw new AppError(
-            `Percentages must sum to 100%, currently: ${percentageSum}%`,
-            400
-          );
-        }
-
-        for (let i = 0; i < participants.length; i++) {
-          owedAmounts[i] = round2(
-            (totalAmount * participants[i].percentage) / 100
-          );
-        }
-
-        const totalPercentageComputed = owedAmounts.reduce((a, b) => a + b, 0);
-        const percentageAdjust = round2(totalAmount - totalPercentageComputed);
-        if (Math.abs(percentageAdjust) >= 0.01) {
-          owedAmounts[0] = round2(owedAmounts[0] + percentageAdjust);
-        }
-        break;
-
-      case "RANDOM_PICK":
-        const payerIndex = Math.floor(Math.random() * numParticipants);
-        for (let i = 0; i < numParticipants; i++) {
-          owedAmounts[i] = i === payerIndex ? round2(totalAmount) : 0.0;
-        }
-        break;
-
-      default:
-        throw new AppError("Unsupported split method: " + splitMethod, 400);
-    }
-
-    let totalPaidSum = 0.0;
-    for (let i = 0; i < dbParticipants.length; i++) {
-      const row = dbParticipants[i];
-      const owed = owedAmounts[i];
-
-      await SplitBillParticipant.update(
-        { amount_owed: owed },
-        {
-          where: { id: row.id },
-          transaction,
-          validate: false,
-        }
-      );
-
-      totalPaidSum += parseFloat(row.amount_paid || 0.0);
-    }
-
-    await SplitBill.update(
-      {
-        total_participants: numParticipants,
-        total_paid: round2(totalPaidSum),
-      },
-      { where: { id: billId }, transaction }
-    );
-
-    return true;
   }
 
   static async getUserBills(userId, options = {}) {
@@ -646,6 +502,35 @@ class SplitBillService {
         { transaction }
       );
 
+      await SplitBillActivity.create(
+        {
+          split_bill_id: splitBill.id,
+          actor_id: payerId,
+          action_type: "payment_made",
+          description: `Payment of ${incoming} made by ${
+            participant.user_id ? "user" : participant.guest_name
+          }`,
+          metadata: {
+            amount: incoming,
+            participantId,
+            paymentId: payment.id,
+          },
+        },
+        { transaction }
+      );
+
+      if (isBillCompleted) {
+        await SplitBillActivity.create(
+          {
+            split_bill_id: splitBill.id,
+            actor_id: null,
+            action_type: "completed",
+            description: "Bill completed - all payments received",
+          },
+          { transaction }
+        );
+      }
+
       return {
         participantId,
         amountPaid: newPaid,
@@ -659,11 +544,404 @@ class SplitBillService {
     });
   }
 
-  static async addParticipant(billId, participantData) {
+  static async computeAndSaveShares(
+    billId,
+    participants,
+    splitMethod,
+    transaction
+  ) {
+    const bill = await SplitBill.findByPk(billId, { transaction });
+    if (!bill) {
+      throw new AppError("Bill not found", 404);
+    }
+
+    const totalAmount = parseFloat(bill.amount);
+    const numParticipants = participants.length;
+
+    const dbParticipants = await SplitBillParticipant.findAll({
+      where: { split_bill_id: billId },
+      order: [
+        ["created_at", "ASC"],
+        ["id", "ASC"],
+      ],
+      transaction,
+    });
+
+    if (dbParticipants.length !== numParticipants) {
+      throw new AppError(
+        "Mismatch between input participants and DB rows",
+        500
+      );
+    }
+
+    const round2 = (v) => Math.round(v * 100) / 100;
+    const owedAmounts = new Array(numParticipants).fill(0.0);
+
+    switch (splitMethod) {
+      case "EVEN":
+        const base = Math.floor((totalAmount / numParticipants) * 100) / 100;
+        let sumBase = base * numParticipants;
+        let remainder = Math.round((totalAmount - sumBase) * 100);
+
+        for (let i = 0; i < numParticipants; i++) {
+          let centAdd = 0;
+          if (remainder > 0) {
+            centAdd = 1;
+            remainder--;
+          }
+          owedAmounts[i] = round2(base + centAdd / 100);
+        }
+
+        const totalComputed = owedAmounts.reduce((a, b) => a + b, 0);
+        const diff = round2(totalAmount - totalComputed);
+        if (Math.abs(diff) >= 0.01) {
+          owedAmounts[0] = round2(owedAmounts[0] + diff);
+        }
+        break;
+
+      case "MANUAL":
+        let manualSum = 0;
+        for (let i = 0; i < participants.length; i++) {
+          const p = participants[i];
+          if (typeof p.amount !== "number" || p.amount < 0) {
+            throw new AppError(
+              "Manual split requires valid amount for each participant",
+              400
+            );
+          }
+          owedAmounts[i] = round2(p.amount);
+          manualSum += owedAmounts[i];
+        }
+
+        const manualDiff = Math.abs(round2(manualSum) - round2(totalAmount));
+        if (manualDiff > 0.1) {
+          throw new AppError(
+            `Manual amounts sum to ${manualSum} but bill amount is ${totalAmount}`,
+            400
+          );
+        }
+
+        const totalManualComputed = owedAmounts.reduce((a, b) => a + b, 0);
+        const manualAdjust = round2(totalAmount - totalManualComputed);
+        if (Math.abs(manualAdjust) >= 0.01) {
+          owedAmounts[0] = round2(owedAmounts[0] + manualAdjust);
+        }
+        break;
+
+      case "PERCENTAGE":
+        let percentageSum = 0;
+        for (let i = 0; i < participants.length; i++) {
+          const p = participants[i];
+          if (
+            typeof p.percentage !== "number" ||
+            p.percentage < 0 ||
+            p.percentage > 100
+          ) {
+            throw new AppError(
+              "Percentage split requires valid percentage (0-100) for each participant",
+              400
+            );
+          }
+          percentageSum += p.percentage;
+        }
+
+        if (Math.abs(percentageSum - 100) > 0.01) {
+          throw new AppError(
+            `Percentages must sum to 100%, currently: ${percentageSum}%`,
+            400
+          );
+        }
+
+        for (let i = 0; i < participants.length; i++) {
+          owedAmounts[i] = round2(
+            (totalAmount * participants[i].percentage) / 100
+          );
+        }
+
+        const totalPercentageComputed = owedAmounts.reduce((a, b) => a + b, 0);
+        const percentageAdjust = round2(totalAmount - totalPercentageComputed);
+        if (Math.abs(percentageAdjust) >= 0.01) {
+          owedAmounts[0] = round2(owedAmounts[0] + percentageAdjust);
+        }
+        break;
+
+      case "RANDOM_PICK":
+        const payerIndex = Math.floor(Math.random() * numParticipants);
+        for (let i = 0; i < numParticipants; i++) {
+          owedAmounts[i] = i === payerIndex ? round2(totalAmount) : 0.0;
+        }
+        break;
+
+      default:
+        throw new AppError("Unsupported split method: " + splitMethod, 400);
+    }
+
+    const adjustments = [];
+    let totalPaidSum = 0.0;
+
+    for (let i = 0; i < dbParticipants.length; i++) {
+      const row = dbParticipants[i];
+      const oldOwed = parseFloat(row.amount_owed);
+      const newOwed = owedAmounts[i];
+      const amountPaid = parseFloat(row.amount_paid || 0.0);
+
+      const owedDifference = newOwed - oldOwed;
+
+      let newStatus = row.status;
+      let requiresAction = false;
+      let actionType = null;
+
+      if (amountPaid > 0) {
+        if (amountPaid >= newOwed) {
+          newStatus = "PAID";
+          if (amountPaid > newOwed + 0.01) {
+            requiresAction = true;
+            actionType = "REFUND_REQUIRED";
+            adjustments.push({
+              participantId: row.id,
+              participantName: row.guest_name || "User",
+              oldOwed,
+              newOwed,
+              amountPaid,
+              overpaidAmount: round2(amountPaid - newOwed),
+              action: "REFUND_REQUIRED",
+              message: `Participant has overpaid by ₦${round2(
+                amountPaid - newOwed
+              )}. Refund required.`,
+            });
+          }
+        } else {
+          newStatus = "PARTIAL";
+          if (owedDifference > 0) {
+            requiresAction = true;
+            actionType = "ADDITIONAL_PAYMENT_REQUIRED";
+            adjustments.push({
+              participantId: row.id,
+              participantName: row.guest_name || "User",
+              oldOwed,
+              newOwed,
+              amountPaid,
+              additionalOwed: round2(newOwed - amountPaid),
+              action: "ADDITIONAL_PAYMENT_REQUIRED",
+              message: `Bill amount changed. Additional ₦${round2(
+                newOwed - amountPaid
+              )} required.`,
+            });
+          }
+        }
+      } else {
+        newStatus = "UNPAID";
+        if (Math.abs(owedDifference) > 0.01) {
+          adjustments.push({
+            participantId: row.id,
+            participantName: row.guest_name || "User",
+            oldOwed,
+            newOwed,
+            amountPaid: 0,
+            action: "AMOUNT_ADJUSTED",
+            message: `Amount owed changed from ₦${oldOwed} to ₦${newOwed}.`,
+          });
+        }
+      }
+
+      await SplitBillParticipant.update(
+        {
+          amount_owed: newOwed,
+          status: newStatus,
+        },
+        {
+          where: { id: row.id },
+          transaction,
+          validate: false,
+        }
+      );
+
+      totalPaidSum += amountPaid;
+    }
+
+    await SplitBill.update(
+      {
+        total_participants: numParticipants,
+        total_paid: round2(totalPaidSum),
+      },
+      { where: { id: billId }, transaction }
+    );
+
+    return {
+      success: true,
+      adjustments,
+      hasRefundsRequired: adjustments.some(
+        (a) => a.action === "REFUND_REQUIRED"
+      ),
+      hasAdditionalPaymentsRequired: adjustments.some(
+        (a) => a.action === "ADDITIONAL_PAYMENT_REQUIRED"
+      ),
+    };
+  }
+
+  static async updateBill(billId, updates, actorId = null) {
     return await sequelize.transaction(async (t) => {
       const bill = await SplitBill.findByPk(billId, {
         include: [{ model: SplitBillParticipant, as: "participants" }],
         transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+
+      if (!bill) {
+        throw new AppError("Bill not found", 404);
+      }
+
+      if (bill.is_finalized) {
+        throw new AppError("Cannot update finalized bill", 400);
+      }
+
+      if (bill.status === "completed") {
+        throw new AppError("Cannot update completed bill", 400);
+      }
+
+      if (bill.status === "cancelled") {
+        throw new AppError("Cannot update cancelled bill", 400);
+      }
+
+      const amountChanged =
+        updates.amount &&
+        parseFloat(updates.amount) !== parseFloat(bill.amount);
+      const splitMethodChanged =
+        updates.split_method && updates.split_method !== bill.split_method;
+      const hasCriticalChanges = amountChanged || splitMethodChanged;
+
+      const oldAmount = parseFloat(bill.amount);
+      const oldSplitMethod = bill.split_method;
+
+      const allowedUpdates = [
+        "title",
+        "description",
+        "due_date",
+        "image_url",
+        "bill_receipt",
+        "amount",
+        "split_method",
+      ];
+
+      const updateData = {};
+      allowedUpdates.forEach((field) => {
+        if (updates[field] !== undefined) {
+          updateData[field] = updates[field];
+        }
+      });
+
+      if (updates.amount !== undefined) {
+        const newAmount = parseFloat(updates.amount);
+        if (isNaN(newAmount) || newAmount <= 0) {
+          throw new AppError("Amount must be greater than zero", 400);
+        }
+      }
+
+      if (updates.split_method) {
+        const validMethods = ["EVEN", "MANUAL", "PERCENTAGE", "RANDOM_PICK"];
+        if (!validMethods.includes(updates.split_method)) {
+          throw new AppError("Invalid split method", 400);
+        }
+      }
+
+      await bill.update(updateData, { transaction: t });
+
+      let adjustmentResults = null;
+
+      if (hasCriticalChanges) {
+        const participantInputs = bill.participants.map((p) => ({
+          type: p.user_id ? "USER" : "GUEST",
+          userId: p.user_id,
+          name: p.guest_name,
+          phone: p.guest_phone,
+          percentage: p.percentage,
+          amount: p.amount_owed,
+        }));
+
+        adjustmentResults = await this.computeAndSaveShares(
+          billId,
+          participantInputs,
+          updates.split_method || bill.split_method,
+          t
+        );
+
+        const activityDescription = [];
+        if (amountChanged) {
+          activityDescription.push(
+            `Amount changed from ₦${oldAmount} to ₦${updates.amount}`
+          );
+        }
+        if (splitMethodChanged) {
+          activityDescription.push(
+            `Split method changed from ${oldSplitMethod} to ${updates.split_method}`
+          );
+        }
+
+        await SplitBillActivity.create(
+          {
+            split_bill_id: billId,
+            actor_id: actorId,
+            action_type: "updated",
+            description:
+              activityDescription.join(". ") + ". Shares recalculated.",
+            metadata: {
+              updates: Object.keys(updateData),
+              oldAmount,
+              newAmount: updates.amount,
+              oldSplitMethod,
+              newSplitMethod: updates.split_method,
+              adjustments: adjustmentResults.adjustments,
+              hasRefundsRequired: adjustmentResults.hasRefundsRequired,
+              hasAdditionalPaymentsRequired:
+                adjustmentResults.hasAdditionalPaymentsRequired,
+            },
+          },
+          { transaction: t }
+        );
+      } else {
+        await SplitBillActivity.create(
+          {
+            split_bill_id: billId,
+            actor_id: actorId,
+            action_type: "updated",
+            description: "Bill details updated",
+            metadata: { updates: Object.keys(updateData) },
+          },
+          { transaction: t }
+        );
+      }
+
+      const updatedBill = await SplitBill.findByPk(billId, {
+        include: [
+          {
+            model: SplitBillParticipant,
+            as: "participants",
+          },
+        ],
+        transaction: t,
+      });
+
+      return {
+        bill: updatedBill,
+        adjustments: adjustmentResults?.adjustments || [],
+        requiresAction:
+          hasCriticalChanges &&
+          adjustmentResults &&
+          (adjustmentResults.hasRefundsRequired ||
+            adjustmentResults.hasAdditionalPaymentsRequired),
+        message: hasCriticalChanges
+          ? "Bill updated. Some participants may require payment adjustments."
+          : "Bill updated successfully.",
+      };
+    });
+  }
+
+  static async addParticipant(billId, participantData, actorId = null) {
+    return await sequelize.transaction(async (t) => {
+      const bill = await SplitBill.findByPk(billId, {
+        include: [{ model: SplitBillParticipant, as: "participants" }],
+        transaction: t,
+        lock: t.LOCK.UPDATE,
       });
 
       if (!bill) {
@@ -682,13 +960,7 @@ class SplitBillService {
         throw new AppError("Cannot add participant to completed bill", 400);
       }
 
-      const {
-        userId: newUserId,
-        guestName,
-        guestPhone,
-        guestEmail,
-      } = participantData;
-      const userId = String(newUserId);
+      const { userId, guestName, guestPhone, guestEmail } = participantData;
 
       if (!userId && !guestPhone) {
         throw new AppError(
@@ -698,16 +970,21 @@ class SplitBillService {
       }
 
       if (userId) {
-        if (bill.creator_id === userId) {
+        const normalizedUserId = String(userId);
+        const normalizedCreatorId = String(bill.creator_id);
+
+        if (normalizedCreatorId === normalizedUserId) {
           throw new AppError("Bill creator cannot be a participant", 400);
         }
 
-        const user = await User.findById(userId, { transaction: t });
+        const user = await User.findById(normalizedUserId, { transaction: t });
         if (!user) {
           throw new AppError("User does not exist", 404);
         }
 
-        const exists = bill.participants.some((p) => p.user_id === userId);
+        const exists = bill.participants.some(
+          (p) => String(p.user_id) === normalizedUserId
+        );
         if (exists) {
           throw new AppError("User is already a participant", 400);
         }
@@ -752,14 +1029,44 @@ class SplitBillService {
         amount: p.amount_owed,
       }));
 
-      await this.computeAndSaveShares(
+      const adjustmentResults = await this.computeAndSaveShares(
         billId,
         participantInputs,
         bill.split_method,
         t
       );
 
-      return newParticipant;
+      await bill.update(
+        { total_participants: allParticipants.length },
+        { transaction: t }
+      );
+
+      await SplitBillActivity.create(
+        {
+          split_bill_id: billId,
+          actor_id: actorId,
+          action_type: "participant_added",
+          description: `New participant added: ${
+            guestName || "User"
+          }. Shares recalculated for all participants.`,
+          metadata: {
+            participantId: newParticipant.id,
+            type: userId ? "USER" : "GUEST",
+            adjustments: adjustmentResults.adjustments,
+            hasRefundsRequired: adjustmentResults.hasRefundsRequired,
+          },
+        },
+        { transaction: t }
+      );
+
+      return {
+        participant: newParticipant,
+        adjustments: adjustmentResults.adjustments,
+        message:
+          adjustmentResults.adjustments.length > 0
+            ? "Participant added. Existing participant amounts have been adjusted."
+            : "Participant added successfully.",
+      };
     });
   }
 
@@ -792,6 +1099,7 @@ class SplitBillService {
 
       const bill = participant.bill;
 
+      // Validation
       if (bill.is_finalized) {
         throw new AppError(
           "Cannot remove participant from finalized bill",
@@ -813,27 +1121,36 @@ class SplitBillService {
         );
       }
 
-      if (parseFloat(participant.amount_paid) > 0) {
-        throw new AppError(
-          "Cannot remove participant who has already made payments",
-          400
-        );
-      }
-
       if (bill.participants.length <= 1) {
         throw new AppError("Cannot remove the last remaining participant", 400);
       }
 
+      // Check if participant has payments
+      const amountPaid = parseFloat(participant.amount_paid);
+      const hasPayments = amountPaid > 0;
+
+      if (hasPayments) {
+        // Participant has made payments - mark for refund instead of blocking
+        throw new AppError(
+          `Cannot remove participant who has paid ₦${amountPaid}. Please process refund first or contact support.`,
+          400
+        );
+      }
+
+      // Store info before deletion
       const participantInfo = {
         id: participant.id,
         type: participant.user_id ? "USER" : "GUEST",
         name: participant.user_id ? "user" : participant.guest_name,
         user_id: participant.user_id,
         guest_phone: participant.guest_phone,
+        amount_owed: parseFloat(participant.amount_owed),
       };
 
+      // Delete participant
       await participant.destroy({ transaction: t });
 
+      // Recalculate shares for remaining participants
       const remainingParticipants = bill.participants.filter(
         (p) => p.id !== participantId
       );
@@ -847,104 +1164,48 @@ class SplitBillService {
         amount: p.amount_owed,
       }));
 
-      await this.computeAndSaveShares(
+      const adjustmentResults = await this.computeAndSaveShares(
         billId,
         participantInputs,
         bill.split_method,
         t
       );
 
+      // Update total participants
       await bill.update(
         { total_participants: remainingParticipants.length },
         { transaction: t }
       );
 
-      // await SplitBillActivity.create(
-      //   {
-      //     split_bill_id: billId,
-      //     actor_id: actorId,
-      //     action_type: "participant_removed",
-      //     description: `Participant removed: ${participantInfo.name}`,
-      //     metadata: {
-      //       participantId: participantInfo.id,
-      //       type: participantInfo.type,
-      //       userId: participantInfo.user_id,
-      //       guestPhone: participantInfo.guest_phone,
-      //     },
-      //   },
-      //   { transaction: t }
-      // );
+      // Log activity
+      await SplitBillActivity.create(
+        {
+          split_bill_id: billId,
+          actor_id: actorId,
+          action_type: "participant_removed",
+          description: `Participant removed: ${participantInfo.name}. Shares recalculated for remaining participants.`,
+          metadata: {
+            participantId: participantInfo.id,
+            type: participantInfo.type,
+            userId: participantInfo.user_id,
+            guestPhone: participantInfo.guest_phone,
+            amountOwed: participantInfo.amount_owed,
+            adjustments: adjustmentResults.adjustments,
+          },
+        },
+        { transaction: t }
+      );
 
       return {
         success: true,
         removedParticipant: participantInfo,
         remainingParticipants: remainingParticipants.length,
+        adjustments: adjustmentResults.adjustments,
+        message:
+          adjustmentResults.adjustments.length > 0
+            ? "Participant removed. Remaining participant amounts have been adjusted."
+            : "Participant removed successfully.",
       };
-    });
-  }
-
-  static async updateBill(billId, updates) {
-    return await sequelize.transaction(async (t) => {
-      const bill = await SplitBill.findByPk(billId, {
-        include: [{ model: SplitBillParticipant, as: "participants" }],
-        transaction: t,
-      });
-
-      if (!bill) {
-        throw new AppError("Bill not found", 404);
-      }
-
-      if (bill.is_finalized) {
-        throw new AppError("Cannot update finalized bill", 400);
-      }
-
-      if (bill.status === "completed") {
-        throw new AppError("Cannot update completed bill", 400);
-      }
-
-      if (parseFloat(bill.total_paid) > 0) {
-        const restrictedFields = ["amount", "split_method", "currency"];
-        const hasRestrictedUpdate = restrictedFields.some(
-          (field) => updates[field] !== undefined
-        );
-
-        if (hasRestrictedUpdate) {
-          throw new AppError(
-            "Cannot update amount, split method, or currency after payments have been made",
-            400
-          );
-        }
-      }
-
-      const allowedUpdates = [
-        "title",
-        "description",
-        "due_date",
-        "image_url",
-        "bill_receipt",
-      ];
-
-      const updateData = {};
-      allowedUpdates.forEach((field) => {
-        if (updates[field] !== undefined) {
-          updateData[field] = updates[field];
-        }
-      });
-
-      await bill.update(updateData, { transaction: t });
-
-      // await SplitBillActivity.create(
-      //   {
-      //     split_bill_id: billId,
-      //     actor_id: actorId,
-      //     action_type: "updated",
-      //     description: "Bill details updated",
-      //     metadata: { updates: Object.keys(updateData) },
-      //   },
-      //   { transaction: t }
-      // );
-
-      return bill;
     });
   }
 
