@@ -1,119 +1,96 @@
-// WalletController.js
-// This file contains all the basic CRUD controllers for Wallet management in a Node.js application using Express.js and MySQL (via mysql2 package).
-// Assumptions:
-// - You have a MySQL database with a 'Wallet' table: id (INT, AUTO_INCREMENT, PRIMARY KEY), name (VARCHAR), email (VARCHAR, UNIQUE), password (VARCHAR).
-// - Database connection is handled in '../config/database.js' exporting a mysql2 pool (e.g., const pool = mysql.createPool({...}); module.exports = pool;).
-// - Install dependencies: npm install express mysql2 (and bcrypt for production password hashing).
-// - In production, always hash passwords (e.g., using bcrypt) and add input validation (e.g., using Joi or express-validator).
-// - These controllers handle basic operations: GET all Wallet, GET by ID, POST create, PUT update, DELETE by ID.
+const  Wallet  = require('../../Models/wallet');
 
-const con = require('../../dbconnect');
-const crypto = require('crypto');
-
-
-
-// Get all Wallet
-const getWallet = async (req, res) => {
-  try {
-          console.log("TEST DATA :");
-          con.query("SELECT * FROM Wallet", function (err, result, fields) {
-                if (err) throw err;
-                console.log(result); // result will contain the fetched data
-                res.send(result);
-              }); 
-             // res.status(200).json(result);
+// Create a new wallet for a user
+exports.createWallet = async (userId, currency) => {
+  try {    
+    //console.log(Wallet)
+    const wallet = await Wallet.create( userId, currency );
+    //console.log(wallet)
+    //return wallet;
   } catch (error) {
-    console.error('Error fetching Wallet:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return error.message ;
   }
 };
 
-// Get Wallet by ID
-const getWalletById = async (req, res) => {
-  const { id } = req.params;
+exports.getWallets = async (req, res) => {
   try {
-    con.query("SELECT * FROM Wallet where id = ? ",[id], function (err, result, fields) {
-                if (err) throw err;
-                console.log(result); // result will contain the fetched data
-                res.send(result);
-              }); 
     
+    const wallet = await Wallet.getWallets();
+    if (wallet) {
+      res.status(200).json(wallet);
+    } else {
+      res.status(404).json({ message: 'Wallet not found' });
+    }
   } catch (error) {
-    console.error('Error fetching Wallet:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// Create a new Wallet
-const createWallet  = async (req, res) => {
-  const { name, email, Walletname,password,phone } = req.body;
-  const WalletId = crypto.randomUUID();
-  const currentDate = new Date();
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email, and password are required' });
-  }
+// Get a wallet by userId
+exports.getWallet = async (req, res) => {
   try {
-    // In production: const hashedPassword = await bcrypt.hash(password, 10);
-      const sql = 'INSERT INTO `Wallet`( `full_name`, `Walletname`, `email`,`phone`, `password_hash`) VALUES (?,?,?,?,?)'
-    con.query(sql,[name,Walletname,email,phone,password], function (err, result, fields) {
-      if (err) throw err;
-      console.log(result); // result will contain the fetched data
-      res.send('Wallet registered successfully!');
-    });
-  } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'Email already exists' });
+    const { userId } = req.params;
+    const wallet = await Wallet.getWallet({ where: { userId } });
+    if (wallet) {
+      res.status(200).json(wallet);
+    } else {
+      res.status(404).json({ message: 'Wallet not found' });
     }
-    console.error('Error creating Wallet:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
-// Update Wallet by ID
-const updateWallet  = async (req, res) => {
-  const { id } = req.params;
-  const { name, email, password } = req.body;
-  if (!name && !email && !password) {
-    return res.status(400).json({ error: 'At least one field (name, email, or password) must be provided' });
-  }
+exports.getWalletBalance = async (req, res) => {
   try {
-    // In production: if (password) { const hashedPassword = await bcrypt.hash(password, 10); }
-    const updateFields = [];
-    const values = [];
-    if (name) {
-      updateFields.push('name = ?');
-      values.push(name);
+    const { userId } = req.params;
+    const wallet = await Wallet.getWalletBallance({ where: { userId } });
+    if (wallet) {
+      res.status(200).json(wallet);
+    } else {
+      res.status(404).json({ message: 'Wallet not found' });
     }
-    if (email) {
-      updateFields.push('email = ?');
-      values.push(email);
-    }
-    if (password) {
-      updateFields.push('password = ?');
-      values.push(password); // Use hashedPassword in production
-    }
-    values.push(id);
-
-    const [result] = await db.execute(
-      `UPDATE Wallet SET ${updateFields.join(', ')} WHERE id = ?`,
-      values
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Wallet  not found' });
-    }
-    res.status(200).json({ message: 'Wallet  updated successfully' });
   } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'Email already exists' });
-    }
-    console.error('Error updating Wallet:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// Delete Wallet by ID
-const deleteWallet  = async (req, res) => {
+// Add funds to a wallet
+exports.addFunds = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { amount } = req.body;
+
+    const wallet = await Wallet.getWallet(userId);
+    if (wallet) {
+      const update = await Wallet.addWalletBalance( userId, amount);
+      res.status(200).json(wallet);
+    } else {
+      res.status(404).json({ message: 'Wallet not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.removeFunds = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { amount } = req.body;
+
+    const wallet = await Wallet.getWallet(userId);
+    if (wallet) {
+      const update = await Wallet.minusWalletBalance( userId, amount);
+      res.status(200).json(wallet);
+    } else {
+      res.status(404).json({ message: 'Wallet not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.deleteWallet  = async (req, res) => {
   const { id } = req.params;
   try {
     const [result] = await db.execute('DELETE FROM Wallet WHERE id = ?', [id]);
@@ -127,10 +104,3 @@ const deleteWallet  = async (req, res) => {
   }
 };
 
-module.exports = {
-  getWallet,
-  getWalletById,
-  createWallet ,
-  updateWallet ,
-  deleteWallet ,
-};

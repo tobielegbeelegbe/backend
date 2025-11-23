@@ -3,10 +3,11 @@ const router = express.Router();
 const con = require('../../dbconnect');
 const {
   getWallet,
-  getWalletById,
+  getWallets,
   createWallet ,
-  updateWallet ,
+  addFunds ,
   deleteWallet ,
+  removeFunds,
 } = require('../../Controllers/Wallet/WalletController');
 
 
@@ -14,10 +15,11 @@ const {
 router.use(express.urlencoded({ extended: true }));
 
 // Routes
-router.get('/', getWallet);
-router.get('/:id', getWalletById);
-router.post('/', createWallet);
-router.put('/:id', updateWallet);
+router.get('/', getWallets);
+router.get('/getWallet:id', getWallet);
+router.post('/create', createWallet);
+router.put('/addFunds:id', addFunds);
+router.put('/removeFunds:id', removeFunds);
 router.delete('/:id', deleteWallet);
 
 

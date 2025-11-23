@@ -1,7 +1,10 @@
 const pool = require('../dbconnect');
 const bcrypt = require('bcryptjs');
 
+
+//const pool = await pools.getConnection();
 class User {
+    
     static async create(email, password, phone,code) {
         const hashedPassword = await bcrypt.hash(password, 10);
         const username = email;
@@ -42,10 +45,15 @@ class User {
     }
 
     static async findByEmail(email) {
+        console.log(email);
+        console.log(pool);
+        
         const [rows] = await pool.execute(
             'SELECT * FROM users WHERE email = ?',
             [email]
         );
+        console.log(rows);
+        console.log(pool);
         return rows[0];
     }
     

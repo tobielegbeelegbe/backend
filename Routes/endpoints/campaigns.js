@@ -1,6 +1,7 @@
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
-const con = require('../../dbconnect');
+
 const {
   getCampaigns,
   getCampaignById,
@@ -11,20 +12,23 @@ const {
   getCategory,
   getApprovalStatus,
   stakeholderApproval,
+  viewDetails,
 } = require('../../Controllers/Campaign/CampaignController');
-
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 
 router.use(express.urlencoded({ extended: true }));
 
 // Routes
 router.get('/getall', getCampaigns);
+router.post('/saveImage',upload.array('image',10), viewDetails);
 router.get('/getCategory', getCategory);
 router.get('/getcampaign/:id', getCampaignById);
 router.get('/getApprovalStatus/:id', getApprovalStatus);
 router.put('/stakeholderApproval/:id', stakeholderApproval);
 router.get('/searchCampaign/:name', getCampaignByName);
-router.post('/create', createCampaign);
+router.post('/create', upload.array('image',10), createCampaign);
 router.put('/:id', updateCampaign);
 router.delete('/delete:id', deleteCampaign);
 

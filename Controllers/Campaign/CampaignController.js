@@ -14,10 +14,25 @@ const Notify = require('../Notifications/NotifyController')
 const Host = require('../Host/HostController')
 
 
+const { S3Client,PutObjectCommand,ListBucketsCommand,S3ServiceException } = require("@aws-sdk/client-s3");
+const { readFile } = require( "node:fs/promises");
+const { Upload } = require("@aws-sdk/lib-storage");
+
+    const r2 = new S3Client({
+        region: "auto", // Or a specific region if required by your R2 setup
+        endpoint: `https://235e26cc351b50a91a8aa9d25f3e4a89.r2.cloudflarestorage.com`,
+        credentials: {
+            accessKeyId: '1bb90867ae9f41ee5636a6012dd4a2ff',
+            secretAccessKey: '81db0a29d90035565ca7e41d5694e9f6660d970213d82bd0689398c75d7c1d89',
+        },
+    });
+
+
 
 // Get all Campaigns
 const getCampaigns = async (req, res) => {
   try {
+      
            const con = await pool.getConnection();
            const sql = "SELECT * FROM campaigns"
            const result = await con.execute(sql);
@@ -73,32 +88,123 @@ const getCampaignByName = async (req, res) => {
   }
 };
 
+const viewDetails = async(req,res) =>
+{
+
+  img = [];
+
+  if (req.files && Array.isArray(req.files)) {
+  for (const file of req.files) {
+
+      const key = `images/${Date.now()}-${file.originalname}`
+      const bucket = 'greyfundr'
+      const body = file.buffer;
+      const type = file.mimetype
+    // Process each file individually
+    
+    console.log(`Processing file: ${file.originalname}`);
+    img.push(key);
+    //const saved = await saveimage(bucket,key,body);
+    //console.log(saved)
+    // Example: move file, resize image, store data in database
+    // fs.renameSync(file.path, `/new/destination/${file.filename}`);
+  }
+} else {
+  console.log("No files uploaded or req.files is not an array.");
+} 
+console.log(img);  
+
+  
+}
+
+const saveimage = async (bucket, key, body ) => {
+const upload = new Upload({
+          client: r2,
+          params: {
+            Bucket: bucket,
+            Key: key,
+            Body: body, // The readable stream
+            // You can add other S3 PutObjectCommand parameters here, e.g., ContentType
+            // ContentType: 'application/octet-stream',
+          },
+        });
+      
+        upload.on("httpUploadProgress", (progress) => {
+          console.log(progress); // Log upload progress
+        });
+      
+        try {
+          const data = await upload.done();
+          console.log("Upload successful:", data);
+          return data;
+        } catch (error) {
+          console.error("Error uploading file:", error);
+          throw error;
+        }
+  }
+
 // Create a new Campaign
 const createCampaign  = async (req, res) => {
   const con = await pool.getConnection();
   const { title, description,startDate,endDate,amount,id,stakeholders,images } = req.body;
   const form = endDate.split('/')
+  const forms = startDate.split('/')
+
   const day = +form[0];
   const month = +form[1];
   const year = +form[2];
+
+  const days = +forms[0];
+  const months = +forms[1];
+  const years = +forms[2];
+
   const convert = new Date(year,month-1,day);
+  const converts = new Date(years,months-1,days);
 
   stakeholder = JSON.parse(stakeholders);
   hosts = stakeholder.length;
   
   console.log(stakeholder);
 
-  if (!title || !description || !id) {
+    if (!title || !description || !id) {
     return res.status(400).json({ error: 'Title, Description, and Amount are required' });
   } 
+
+  img = [];
+
+      if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+
+          const key = `images/${Date.now()}-${file.originalname}`
+          const bucket = 'greyfundr'
+          const body = file.buffer;
+          const type = file.mimetype
+        // Process each file individually
+        
+        console.log(`Processing file: ${file.originalname}`);
+        console.log(key);
+        img.push(key);
+        const saved = await saveimage(bucket,key,body);
+        console.log(saved)
+        // Example: move file, resize image, store data in database
+        // fs.renameSync(file.path, `/new/destination/${file.filename}`);
+      }
+    } else {
+      console.log("No files uploaded or req.files is not an array.");
+    } 
+    
+   stringImages = img.join(',');
+   
   try {
     // In production: const hashedPassword = await bcrypt.hash(password, 10);
-    
-      const sql = "INSERT INTO `campaigns`( `creator_id`, `title`, `description`,`start_date`, `end_date`, `goal_amount`, `current_amount`,`approved`,`host`,`image`) VALUES (?,?,?,?,?,?,?,?,?,?)";
-      const values = [id,title,description,new Date(startDate),convert,amount,0,false,hosts,images]
+      console.log(id);
+      console.log(title);
+      console.log(description);
+      const sql = "INSERT INTO `campaigns`( `creator_id`, `title`, `description`,`start_date`, `end_date`, `goal_amount`, `current_amount`,`approved`,`host`,`images`,`category`,`image`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+      const values = [id,title,description,converts,convert,amount,0,false,hosts,stringImages,'nature',img[0]]
       const result = await con.execute(sql,values);
       
-     
+     console.log(stringImages);
       
       const message = 'You were added as a host to a new campaign';
       const type = 'campaign'
@@ -115,7 +221,7 @@ const createCampaign  = async (req, res) => {
     
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'Email already exists' });
+      return res.status(409).json({ msg: 'Email already exists'});
     }
     console.error('Error creating Campaign:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -256,4 +362,5 @@ module.exports = {
   getCategory,
   getApprovalStatus,
   stakeholderApproval,
+  viewDetails,
 };

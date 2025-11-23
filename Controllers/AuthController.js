@@ -4,11 +4,13 @@ const con = require("../dbconnect");
 const crypto = require("crypto");
 const User = require("../Models/user");
 const very = require("../Controllers/VerificationController");
+const Wallet = require("../Controllers/Wallet/WalletController")
 
 // Register a new user
 exports.createUser = async (req, res) => {
   const { email, password, phone } = req.body;
-  console.log(email);
+  
+  
 
   const code = generateVerificationCode();
 
@@ -18,8 +20,9 @@ exports.createUser = async (req, res) => {
       .json({ error: "Phone, email, and password are required" });
   }
   try {
-    console.log(phone);
+    
     let test = await User.create(email, password, phone, code);
+    
 
     if (test) {
       if (test) {
@@ -47,8 +50,14 @@ function generateVerificationCode() {
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
 
+    
+
   try {
     // Check if user exists
+    console.log(email);
+  console.log(password);
+  console.log('Not Found');
+  
     let user = await User.findByEmail(email);
     if (!user) {
       return res.status(400).json({ msg: "Invalid Email or Phone" });
@@ -79,8 +88,7 @@ exports.loginUser = async (req, res) => {
 exports.verify = async (req, res) => {
   const { code, email } = req.body;
 
-  console.log(code);
-  console.log(email);
+
   try {
     // Check if user exists
     let user = await User.findByEmail(email);
@@ -103,7 +111,7 @@ exports.verify = async (req, res) => {
 
 exports.updateDetails = async (req, res) => {
   const { id, first_name, last_name, username, rUsername } = req.body;
-
+  const currency = 'Naira';
   console.log(id);
   console.log(first_name);
   try {
@@ -116,6 +124,11 @@ exports.updateDetails = async (req, res) => {
       rUsername
     );
 
+    
+       let wallet = await Wallet.createWallet(id,currency);
+
+       console.log(wallet);
+    
     res.status(200).json({ message: "Updated successfully", id: user.id });
   } catch (err) {
     console.error(err.message);

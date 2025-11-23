@@ -1,13 +1,13 @@
 const pool = require('../dbconnect');
 const bcrypt = require('bcryptjs');
 
-class User {
-    static async create(email, password, phone) {
-        const hashedPassword = await bcrypt.hash(password, 10);
+class Wallet {
+
+    static async create(user_id, currency) {
 
         const [result] = await pool.execute(
-            'INSERT INTO users (email, password_hash, phone) VALUES (?, ?,?)',
-            [email, hashedPassword, phone]
+            'INSERT INTO wallets (user_id, currency) VALUES (?,?)',
+            [user_id, currency]
         );
 
 
@@ -16,7 +16,7 @@ class User {
 
     static async getWalletBallance(id) {
         const [rows] = await pool.execute(
-            'SELECT balance FROM wallet WHERE id = ?',
+            'SELECT balance FROM wallets WHERE id = ?',
             [email]
         );
         return rows[0];
@@ -24,18 +24,34 @@ class User {
 
     static async getWallet(id) {
         const [rows] = await pool.execute(
-            'SELECT * FROM wallet WHERE id = ?',
+            'SELECT * FROM wallets WHERE id = ?',
             [id]
         );
         return rows[0];
     }
 
-    static async updateWalletBalance(id, amount) {
+    static async getWallets() {
+        const [rows] = await pool.execute(
+            'SELECT * FROM wallets',
+            
+        );
+        return rows[0];
+    }
+
+    static async addWalletBalance(id, amount) {
         await pool.execute(
-            'UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?',
+            'UPDATE wallets SET balance = balance + ? WHERE id = ?',
+            [amount, id]
+        );
+    }
+
+    static async minusWalletBalance(id, amount) {
+        await pool.execute(
+            'UPDATE wallets SET balance = balance - ? WHERE id = ?',
             [amount, id]
         );
     }
 }
 
-module.exports = User;
+
+module.exports = Wallet;
