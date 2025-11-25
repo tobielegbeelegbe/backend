@@ -80,7 +80,9 @@ exports.loginUser = async (req, res) => {
 
     if(!user_wallet)
     {
-      let wallet = await Wallet.createWallet(user.id,'Naira');
+      let user_wallet = await Wallet.createWallet(user.id,'Naira');
+      return res.status(400).json({ msg: "No User Wallet Found" });
+      
     }
 
     console.log(user_wallet)
