@@ -224,7 +224,7 @@ const createCampaign  = async (req, res) => {
   
      
       
-     // res.status(200).json({ msg: 'Campaign Created successfully', id: result[0].insertId });
+      res.status(200).json({ msg: 'Campaign Created successfully', id: result[0].insertId });
     
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {

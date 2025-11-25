@@ -27,6 +27,9 @@ exports.createUser = async (req, res) => {
 
     if (test) {
       if (test) {
+      let user_wallet = await Wallet.getUserWallet(user.id);
+
+      console.log(user_wallet)
         console.log(code);
         very.sendWhatsapp(phones, code);
         res.json({ message: "Verification Code Sent to" + phones });
@@ -74,6 +77,11 @@ exports.loginUser = async (req, res) => {
     }
     console.log(isMatch);
     let user_wallet = await Wallet.getUserWallet(user.id);
+
+    if(!user_wallet)
+    {
+      let wallet = await Wallet.createWallet(user.id,'Naira');
+    }
 
     console.log(user_wallet)
 
