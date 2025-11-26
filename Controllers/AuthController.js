@@ -48,6 +48,12 @@ function generateVerificationCode() {
   return crypto.randomInt(1000, 9999);
 }
 
+
+function generateAnonymus() {
+  // Generates a random integer between 100000 (inclusive) and 999999 (inclusive)
+  return crypto.randomInt(100000, 999999);
+}
+
 // Login user
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
@@ -123,10 +129,13 @@ exports.verify = async (req, res) => {
 };
 
 exports.updateDetails = async (req, res) => {
-  const { id, first_name, last_name, username, rUsername } = req.body;
+  const { id, first_name, last_name, username } = req.body;
   const currency = 'Naira';
   console.log(id);
   console.log(first_name);
+  const random = generateAnonymus();
+  const rusername = 'Anonymus' + random;
+  console.log(rusername);
   try {
     // Check if user exists
     let user = await User.updateDetails(
@@ -134,7 +143,7 @@ exports.updateDetails = async (req, res) => {
       first_name,
       last_name,
       username,
-      rUsername
+      rusername
     );
 
     
