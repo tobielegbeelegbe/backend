@@ -2,6 +2,7 @@ const pool = require('../dbconnect');
 
 class Donation {
     static async create(userId, campaignId, amount, type, stat, uName) {
+        console.log(campaignId);
         const [result] = await pool.execute(
             'INSERT INTO donors (user_id, campaign_id, amount, type, status, name) VALUES (?, ?, ?, ?, ?, ?)',
             [userId, campaignId, amount, type, stat, uName]

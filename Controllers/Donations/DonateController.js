@@ -99,7 +99,7 @@ const createDonor = async (req, res) => {
 
   }
 
-
+  console.log(user_id);
   if (!creator_id || !user_id || !campaign_id) {
     return res
       .status(400)
@@ -109,8 +109,8 @@ const createDonor = async (req, res) => {
     
     let test = await Donation.create(user_id, campaign_id, amount, type, stat, user.first_name);
     
-
-   
+    
+    
       if (test) {
       
         console.log(test);
