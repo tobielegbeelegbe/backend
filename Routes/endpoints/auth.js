@@ -8,6 +8,7 @@ const {
   getProfile ,
   verify,
   updateDetails,
+  verifyPin,
 } = require('../../Controllers/AuthController');
 
 
@@ -23,6 +24,7 @@ router.post('/register', createUser);
 router.get('/forgot/:id', forgotPassword);
 router.get('/getProfile/:id', getProfile);
 router.post('/verifyphone', verify);
+router.post('/verifypin', verifyPin);
 router.post('/updateregister', updateDetails);
 
 

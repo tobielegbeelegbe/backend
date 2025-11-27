@@ -6,6 +6,7 @@ const userRoute = require("./Routes/endpoints/user");
 const authRoute = require("./Routes/endpoints/auth");
 const adminRoute = require("./Routes/endpoints/admin");
 const backerRoute = require("./Routes/endpoints/backer");
+const donorRoute = require("./Routes/endpoints/donations");
 const campaignRoute = require("./Routes/endpoints/campaigns");
 const championRoute = require("./Routes/endpoints/champion");
 const followerRoute = require("./Routes/endpoints/follower");
@@ -31,6 +32,9 @@ app.use("/auth", authRoute);
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/wallet", walletRoute);
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use("/donor", donorRoute);
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/follower", followerRoute);

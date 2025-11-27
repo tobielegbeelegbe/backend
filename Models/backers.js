@@ -1,10 +1,10 @@
 const pool = require('../dbconnect');
 
-class Donation {
-    static async create(userId, campaignId, amount, type, stat, uName) {
+class Backer {
+    static async create(userId, campaignId, amount, backerId) {
         const [result] = await pool.execute(
-            'INSERT INTO donors (user_id, campaign_id, amount, type, status, name) VALUES (?, ?, ?, ?, ?, ?)',
-            [userId, campaignId, amount, type, stat, uName]
+            'INSERT INTO backers (user_id, campaign_id, amount, backer_id) VALUES (?, ?, ?, ?)',
+            [userId, campaignId, amount, backerId]
         );
         return result.insertId;
     }
@@ -12,7 +12,7 @@ class Donation {
     
       static async getDonationByUser(id) {
           const [rows] = await pool.execute(
-              'SELECT * FROM donors WHERE user_id = ?',
+              'SELECT * FROM backers WHERE user_id = ?',
               [id]
           );
           return rows[0];
@@ -20,7 +20,7 @@ class Donation {
 
       static async getDonationByCampaign(id) {
           const [rows] = await pool.execute(
-              'SELECT * FROM donors WHERE campaign_id = ?',
+              'SELECT * FROM backers WHERE campaign_id = ?',
               [id]
           );
           return rows[0];
@@ -28,18 +28,18 @@ class Donation {
 
     static async updateStatus(id, status) {
         await pool.execute(
-            'UPDATE donors SET status = ? WHERE id = ?',
+            'UPDATE backers SET status = ? WHERE id = ?',
             [status, id]
         );
     }
 
     static async getByEventId(eventId) {
         const [rows] = await pool.execute(
-            'SELECT d.*, u.email FROM donors d JOIN users u ON d.user_id = u.id WHERE d.event_id = ? ORDER BY d.created_at DESC',
+            'SELECT d.*, u.email FROM backers d JOIN users u ON d.user_id = u.id WHERE d.event_id = ? ORDER BY d.created_at DESC',
             [eventId]
         );
         return rows;
     }
 }
 
-module.exports = Donation;
+module.exports = Backer;

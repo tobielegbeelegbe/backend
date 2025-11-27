@@ -128,6 +128,31 @@ exports.verify = async (req, res) => {
   }
 };
 
+
+exports.verifyPin = async (req, res) => {
+  const { code, email } = req.body;
+
+
+  try {
+    // Check if user exists
+    let user = await User.findByEmail(email);
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid User" });
+    }
+
+    console.log(user.pin);
+    console.log(code);
+    if (user.pin == code) {
+      
+      res.status(200).json({ message: "Verified successfully", id: user.id });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+};
+
 exports.updateDetails = async (req, res) => {
   const { id, first_name, last_name, username } = req.body;
   const currency = 'Naira';

@@ -41,10 +41,10 @@ const getCampaigns = async (req, res) => {
                 res.send(result);
           
              // res.status(200).json(result);
-  } catch (error) {
-    console.error('Error fetching Campaigns:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+      } catch (error) {
+        console.error('Error fetching Campaigns:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
 };
 
 // Get Campaign by ID
@@ -59,9 +59,19 @@ const getCampaignById = async (req, res) => {
     const [rows] = await pool.execute(
             "SELECT * FROM campaigns where id = ? ",[id]
         );
+
+    const [donors] = await pool.execute(
+            "SELECT * FROM donors where campaign_id = ? ",[id]
+        );
+
+    
+    const payload = { campaigns: rows[0], donors: donors};
+    
+        res.status(200).json({ msg: "Logged in successfully", payload });
     
     console.log(rows[0]); // result will contain the fetched data
-    res.send(rows[0]);
+    console.log(donors);
+    //res.send(rows[0]);
               
     
   } catch (error) {

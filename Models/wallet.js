@@ -47,7 +47,7 @@ class Wallet {
 
     static async minusWalletBalance(id, amount) {
         await pool.execute(
-            'UPDATE wallets SET balance = balance - ? WHERE id = ?',
+            'UPDATE wallets SET balance = balance - ? WHERE user_id = ?',
             [amount, id]
         );
     }

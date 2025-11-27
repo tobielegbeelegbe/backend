@@ -17,8 +17,6 @@ const getBackers = async (req, res) => {
   const con = await pool.getConnection();
   
   try {
-          
-          console.log("TEST DATA :");
           const result = await con.execute("SELECT * FROM backers")
           backers = result[0];
           const backeDetails = await fetchDataAndSaveToArray(backers);
