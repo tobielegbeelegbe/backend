@@ -157,7 +157,7 @@ const updatAmount = async (id,debit) =>
     
 
   const [result] = await con.execute(
-    'UPDATE campaigns SET current_amount = current_amount - ? WHERE id = ?',
+    'UPDATE campaigns SET current_amount = current_amount + ? WHERE id = ?',
                 [debit,id]           
   );
   return result;
