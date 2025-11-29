@@ -8,7 +8,7 @@ RUN npm ci --only=production
 
 COPY . .
 
-RUN npm run build # If you have a build step (e.g., TypeScript compilation, Webpack)
+RUN pnpm run build # If you have a build step (e.g., TypeScript compilation, Webpack)
 
 # Stage 2: Create the final production image
 FROM node:20-alpine AS production
