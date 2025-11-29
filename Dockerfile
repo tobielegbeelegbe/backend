@@ -6,8 +6,9 @@ RUN corepack enable
 FROM node:20-alpine
 
 FROM base AS build
-WORKDIR /
-COPY . .
+WORKDIR /usr/app
+
+COPY ./ ./
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 ENV NODE_ENV=production
