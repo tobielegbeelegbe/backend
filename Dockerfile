@@ -1,40 +1,27 @@
-FROM node:19.5.0-alpine AS base
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
-# Use a lightweight Node.js base image
-FROM node:20-alpine
+# Stage 1: Build the application
+FROM node:20-alpine AS builder
 
-FROM base AS build
-WORKDIR '/app'
-
-COPY ./ ./
-COPY package.json pnpm-lock.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-ENV NODE_ENV=production
-RUN pnpm run build
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if present) to leverage Docker's caching
-COPY package*.json ./
+COPY package.json package-lock.json ./
+RUN npm ci --only=production
 
-FROM base AS dokploy
-WORKDIR /
-ENV NODE_ENV=production
-# Install application dependencies
-RUN npm install
-
-# Copy only the necessary files
-COPY --from=build /dist ./dist
-COPY --from=build /package.json ./package.json
-COPY --from=build /node_modules ./node_modules
-# Copy the rest of the application code
 COPY . .
 
-# Expose the port your Node.js application listens on
-EXPOSE 3000
-CMD ["pnpm", "start"]
+RUN npm run build # If you have a build step (e.g., TypeScript compilation, Webpack)
 
-# Command to run the application
-CMD [ "node --async-stack-traces", "server.js" ]
+# Stage 2: Create the final production image
+FROM node:20-alpine AS production
+
+WORKDIR /app
+
+# Copy only necessary files from the builder stage
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json # Only if needed for runtime (e.g., scripts)
+COPY --from=builder /app/dist ./dist # Assuming your build output is in 'dist'
+
+ENV NODE_ENV=production
+
+EXPOSE 3000 # Or the port your Node.js application listens on
+
+CMD ["node", "dist/server.js"] # Adjust to your main application entry point (e.g., app.js, index.js)
