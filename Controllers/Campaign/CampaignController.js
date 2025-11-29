@@ -159,42 +159,55 @@ const upload = new Upload({
         }
   }
 
-// Create a new Campaign
-const createCampaign  = async (req, res) => {
-  const con = await pool.getConnection();
-  const { title, description,startDate,endDate,amount,id,stakeholders,images,moffers, aoffers} = req.body;
-  const form = endDate.split('/')
-  const forms = startDate.split('/')
+function dateFormat(fDate)
+{
 
+  const form = fDate.split('/');
   const day = +form[0];
   const month = +form[1];
   const year = +form[2];
 
-  const days = +forms[0];
-  const months = +forms[1];
-  const years = +forms[2];
-
   const convert = new Date(year,month-1,day);
-  const converts = new Date(years,months-1,days);
 
-  console.log(convert);
-  console.log(converts);
+  return convert;
+
+}
+
+// Create a new Campaign
+const createCampaign  = async (req, res) => {
+  const con = await pool.getConnection();
+  const { title, description,startDate,endDate,amount,id,stakeholders,category,moffers, aoffers} = req.body;
+
+  const convert = dateFormat(endDate);
+  const converts = dateFormat(startDate);
 
   stakeholder = JSON.parse(stakeholders);
   hosts = stakeholder.length;
 
-  moffers = JSON.parse(moffers);
-  const mofferAsString = JSON.stringify(offers);
+  let mofferAsString;
+  let aofferAsString;
 
-  aoffers = JSON.parse(aoffers);
-  const aofferAsString = JSON.stringify(offers);
+  if(moffers != null)
+  {
+  moffer = JSON.parse(moffers);
+  mofferAsString = JSON.stringify(moffer);
+  }
+
+  if(aoffers != null)
+  {
+  aoffer = JSON.parse(aoffers);
+  aofferAsString = JSON.stringify(aoffer);
+  }
 
   
   console.log(stakeholder);
+   console.log(mofferAsString);
+    console.log(aofferAsString);
 
     if (!title || !description || !id) {
     return res.status(400).json({ error: 'Title, Description, and Amount are required' });
   } 
+  try {
 
   img = [];
 
@@ -221,15 +234,17 @@ const createCampaign  = async (req, res) => {
     
    stringImages = img.join(',');
 
-  try {
+  
     // In production: const hashedPassword = await bcrypt.hash(password, 10);
 
-      const sql = "INSERT INTO `campaigns`( `creator_id`, `title`, `description`,`start_date`, `end_date`, `goal_amount`, `current_amount`,`approved`,`host`,`images`,`category`,`image`,`moffer`,`aoffer`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
-      const values = [id,title,description,converts,convert,amount,0,0,hosts,stringImages,'nature',img[0],mofferAsString,aofferAsString]
+      const sql = "INSERT INTO `campaigns`( `creator_id`, `title`, `description`,`start_date`, `end_date`, `goal_amount`, `current_amount`,`approved`,`host`,`images`,`category`,`image`,`moffer`,`aoffer`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+      const values = [id,title,description,converts,convert,amount,0,0,hosts,stringImages,category,img[0],mofferAsString,aofferAsString]
       const result = await con.execute(sql,values);
       console.log(result);
      console.log(stringImages);
       
+     if(stakeholders.length > 0)
+     {
       const message = 'You were added as a host to a new campaign';
       const type = 'campaign'
        for (const product of stakeholder) {
@@ -237,6 +252,7 @@ const createCampaign  = async (req, res) => {
         console.log(result[0].insertId);
         Host.createHost(product.id,result[0].insertId);
         Notify.createNotification(product.id,message,type,result[0].insertId);
+       }
     }
   
      

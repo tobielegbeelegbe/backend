@@ -103,10 +103,10 @@ const checkLogin = async(email,password) =>
   let user = await User.findByEmail(email);
     if (!user) {
       console.log("user Not FOund")
-      return res.status(400).json({ msg: "User Not FOund" });
+      return false
     }
 
-    console.log(user.id);
+    console.log(user.id); 
 
     // Compare passwords
      
