@@ -22,7 +22,7 @@ FROM base AS dokploy
 WORKDIR /
 ENV NODE_ENV=production
 # Install application dependencies
-RUN pnpm install
+RUN npm install
 
 # Copy only the necessary files
 COPY --from=build /dist ./dist
