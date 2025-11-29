@@ -8,6 +8,9 @@ RUN npm ci --only=production
 
 COPY . .
 
+# Install application dependencies
+RUN npm install
+
 RUN npm run dev # If you have a build step (e.g., TypeScript compilation, Webpack)
 
 # Stage 2: Create the final production image
