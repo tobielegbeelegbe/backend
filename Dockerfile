@@ -6,7 +6,7 @@ RUN corepack enable
 FROM node:20-alpine
 
 FROM base AS build
-WORKDIR /usr/app
+WORKDIR '/app'
 
 COPY ./ ./
 COPY package.json pnpm-lock.yaml ./
