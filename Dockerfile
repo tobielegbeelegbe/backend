@@ -24,4 +24,4 @@ ENV NODE_ENV=production
 
 EXPOSE 3000 # Or the port your Node.js application listens on
 
-CMD ["node", "dist/server.js"] # Adjust to your main application entry point (e.g., app.js, index.js)
+CMD ["node", "server.js"] # Adjust to your main application entry point (e.g., app.js, index.js)
