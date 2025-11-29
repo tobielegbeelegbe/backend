@@ -22,6 +22,7 @@ COPY --from=builder /app/dist ./dist # Assuming your build output is in 'dist'
 
 ENV NODE_ENV=production
 
-EXPOSE 3000 # Or the port your Node.js application listens on
+EXPOSE 3000 
+# Or the port your Node.js application listens on
 
 CMD ["node", "server.js"] # Adjust to your main application entry point (e.g., app.js, index.js)
