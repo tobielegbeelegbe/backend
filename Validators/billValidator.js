@@ -80,6 +80,7 @@ const createBillSchema = z
     currency: z.string().length(3).default("NGN"),
     amount: z.number().positive("Amount must be greater than 0"),
     creatorId: z.uuid().optional(),
+    imageUrl: z.string().optional(),
     splitMethod: z.enum(["EVEN", "MANUAL", "RANDOM_PICK"]),
     dueDate: z
       .string()

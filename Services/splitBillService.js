@@ -372,12 +372,6 @@ class SplitBillService {
             },
           ],
         },
-        // {
-        //   model: SplitBillActivity,
-        //   as: "activities",
-        //   order: [["created_at", "DESC"]],
-        //   limit: 10,
-        // },
       ],
     });
 
@@ -394,6 +388,31 @@ class SplitBillService {
       }
     }
 
+    const participants = await Promise.all(
+      bill.participants.map(async (p) => {
+        if (!p.user_id) {
+          return {
+            ...p.toJSON(),
+            user: null,
+          };
+        }
+
+        const user = await User.findById(p.user_id);
+
+        return {
+          ...p.toJSON(),
+          user: user
+            ? {
+                id: user.id,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                profile_pic: user.profile_pic,
+              }
+            : null,
+        };
+      })
+    );
+
     const amountRaised = parseFloat(bill.total_paid);
     const percentageComplete = (
       (amountRaised / parseFloat(bill.amount)) *
@@ -402,6 +421,7 @@ class SplitBillService {
 
     return {
       ...bill.toJSON(),
+      participants,
       amount_raised: amountRaised.toFixed(2),
       percentage_complete: percentageComplete,
       is_overdue:
@@ -410,6 +430,59 @@ class SplitBillService {
         bill.status === "active",
     };
   }
+
+  // static async getBillById(billId, userId = null) {
+  //   const bill = await SplitBill.findByPk(billId, {
+  //     include: [
+  //       {
+  //         model: SplitBillParticipant,
+  //         as: "participants",
+  //         include: [
+  //           {
+  //             model: Payment,
+  //             as: "payments",
+  //             attributes: ["id", "amount", "payment_method", "created_at"],
+  //           },
+  //         ],
+  //       },
+  //       // {
+  //       //   model: SplitBillActivity,
+  //       //   as: "activities",
+  //       //   order: [["created_at", "DESC"]],
+  //       //   limit: 10,
+  //       // },
+  //     ],
+  //   });
+
+  //   if (!bill) {
+  //     throw new AppError("Bill not found", 404);
+  //   }
+
+  //   if (userId) {
+  //     const isCreator = bill.creator_id === userId;
+  //     const isParticipant = bill.participants.some((p) => p.user_id === userId);
+
+  //     if (!isCreator && !isParticipant) {
+  //       throw new AppError("You don't have access to this bill", 403);
+  //     }
+  //   }
+
+  //   const amountRaised = parseFloat(bill.total_paid);
+  //   const percentageComplete = (
+  //     (amountRaised / parseFloat(bill.amount)) *
+  //     100
+  //   ).toFixed(2);
+
+  //   return {
+  //     ...bill.toJSON(),
+  //     amount_raised: amountRaised.toFixed(2),
+  //     percentage_complete: percentageComplete,
+  //     is_overdue:
+  //       bill.due_date &&
+  //       new Date(bill.due_date) < new Date() &&
+  //       bill.status === "active",
+  //   };
+  // }
 
   static async applyPayment(
     participantId,

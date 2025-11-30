@@ -13,7 +13,7 @@ module.exports = {
         notifications.push({
           user_id: p.user_id,
           message,
-          type: "split_bill_created",
+          type: "split_bill",
           campaign_id: null,
         });
 
@@ -27,7 +27,7 @@ module.exports = {
     notifications.push({
       user_id: creatorId,
       message: creatorMessage,
-      type: "split_bill_created",
+      type: "split_bill",
       campaign_id: null,
     });
 
@@ -50,7 +50,7 @@ module.exports = {
         await Notification.create({
           user_id: p.user_id,
           message: `The bill "${bill.title}" was updated`,
-          type: "bill_updated",
+          type: "split_bill",
           campaign_id: null,
         });
       }
@@ -66,7 +66,7 @@ module.exports = {
       await Notification.create({
         user_id: participant.user_id,
         message: `You have been added to split bill "${bill.title}"`,
-        type: "participant_added",
+        type: "split_bill",
         campaign_id: null,
       });
     }
@@ -76,7 +76,7 @@ module.exports = {
         await Notification.create({
           user_id: p.user_id,
           message: `A new participant was added to "${bill.title}"`,
-          type: "participant_added",
+          type: "split_bill",
           campaign_id: null,
         });
       }
@@ -92,7 +92,7 @@ module.exports = {
       await Notification.create({
         user_id: removedParticipant.user_id,
         message: `You have been removed from split bill "${bill.title}"`,
-        type: "participant_removed",
+        type: "split_bill",
         campaign_id: null,
       });
     }
@@ -102,7 +102,7 @@ module.exports = {
         await Notification.create({
           user_id: p.user_id,
           message: `A participant was removed from "${bill.title}"`,
-          type: "participant_removed",
+          type: "split_bill",
           campaign_id: null,
         });
       }
@@ -124,7 +124,7 @@ module.exports = {
         await Notification.create({
           user_id: p.user_id,
           message,
-          type: "bill_payment",
+          type: "split_bill",
           campaign_id: null,
         });
       }

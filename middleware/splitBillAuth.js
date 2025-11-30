@@ -46,9 +46,9 @@ const checkBillAccess = async (req, res, next) => {
     const isCreator = bill.creator_id === userId;
     const isParticipant = bill.participants && bill.participants.length > 0;
 
-    if (!isCreator && !isParticipant) {
-      throw new AppError("You don't have access to this bill", 403);
-    }
+    // if (!isCreator && !isParticipant) {
+    //   throw new AppError("You don't have access to this bill", 403);
+    // }
 
     req.bill = bill;
     req.isCreator = isCreator;
