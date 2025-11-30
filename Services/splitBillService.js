@@ -606,6 +606,7 @@ class SplitBillService {
 
       return {
         participantId,
+        billId: participant.split_bill_id,
         amountPaid: newPaid,
         amountOwed: required,
         remainingAmount: Math.max(0, required - newPaid),

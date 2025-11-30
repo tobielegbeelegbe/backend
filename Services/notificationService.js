@@ -1,5 +1,5 @@
 const Notification = require("../Models/notifications");
-const { SplitBill } = require("../Models");
+const { SplitBill, SplitBillParticipant } = require("../Models");
 
 module.exports = {
   async notifyParticipantsCreated(bill, creatorId) {
