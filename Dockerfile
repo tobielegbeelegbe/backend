@@ -46,4 +46,4 @@ USER appuser
 EXPOSE 3000
 
 # Define the command to run the application
-CMD ["node", "src/index.js"] # Adjust "src/index.js" to your application's entry point
+CMD ["node", "server.js"] # Adjust "src/index.js" to your application's entry point
