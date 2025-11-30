@@ -1,31 +1,49 @@
-# Stage 1: Build the application
-FROM node:20-alpine AS builder
+# syntax=docker/dockerfile:1.4
+
+# Stage 1: Build dependencies and application
+FROM node:lts-alpine AS build
+
+# Enable Corepack and configure pnpm
+RUN corepack enable
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci --only=production
+# Copy lockfile and fetch dependencies
+COPY pnpm-lock.yaml ./
+RUN --mount=type=cache,target=/pnpm/store \
+    pnpm fetch
 
+# Copy package.json and install dependencies
+COPY package.json ./
+RUN --mount=type=cache,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prod --offline
+
+# Copy the rest of the application code
 COPY . .
 
-# Install application dependencies
-RUN npm install
+# Build the application (if applicable, e.g., for a Next.js or React app)
+# RUN pnpm build
 
-RUN npm run dev # If you have a build step (e.g., TypeScript compilation, Webpack)
+# Stage 2: Runtime image
+FROM node:lts-alpine AS runtime
 
-# Stage 2: Create the final production image
-FROM node:20-alpine AS production
-
+# Create a non-root user for security
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 WORKDIR /app
 
-# Copy only necessary files from the builder stage
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json # Only if needed for runtime (e.g., scripts)
-COPY --from=builder /app/dist ./dist # Assuming your build output is in 'dist'
+# Copy built application from the build stage
+COPY --from=build --chown=appuser:appgroup /app ./
 
+# Set environment variables
 ENV NODE_ENV=production
 
-EXPOSE 3000 
-# Or the port your Node.js application listens on
+# Switch to the non-root user
+USER appuser
 
-CMD ["node", "server.js"] # Adjust to your main application entry point (e.g., app.js, index.js)
+# Expose the application port
+EXPOSE 3000
+
+# Define the command to run the application
+CMD ["node", "src/index.js"] # Adjust "src/index.js" to your application's entry point
