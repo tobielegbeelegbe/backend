@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const sequelize = require("./Config/sequalize_db");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -28,28 +29,9 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/users", userRoute);
 app.use("/auth", authRoute);
-<<<<<<< HEAD
-=======
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/wallet", walletRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/donor", donorRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/follower", followerRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/champion", championRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/campaign", campaignRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
->>>>>>> c1db17ff1f783026e008c8f2b5077255c33f1f6b
 app.use("/admin", adminRoute);
 app.use("/backer", backerRoute);
+app.use("/donor", donorRoute);
 app.use("/campaign", campaignRoute);
 app.use("/champion", championRoute);
 app.use("/follower", followerRoute);
@@ -76,17 +58,25 @@ app.get("/login", (req, res) => {
 
 app.use(globalErrorHandler);
 
+process.on("unhandledRejection", (reason, p) => {
+  console.error("Unhandled Rejection:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  process.exit(1);
+});
+
 const startServer = async () => {
   try {
     await sequelize.authenticate();
     console.log("✅ Database connection established successfully.");
-
     console.log(
-      "⚠️  Use migrations for schema changes: npx sequelize-cli db:migrate"
+      "⚠️ Use migrations for schema changes: npx sequelize-cli db:migrate"
     );
 
     app.listen(PORT, () => {
-      console.log(`🚀 Server is running on port ${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📍 Environment: ${process.env.NODE_ENV || "development"}`);
     });
   } catch (error) {
