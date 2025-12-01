@@ -4,13 +4,22 @@ const con = require("../dbconnect");
 const crypto = require("crypto");
 const User = require("../Models/user");
 const very = require("../Controllers/VerificationController");
-const Wallet = require("../Controllers/Wallet/WalletController")
+const Wallet = require("../Controllers/Wallet/WalletController");
 
 // Register a new user
 exports.createUser = async (req, res) => {
-  const { email, password, phone } = req.body;
-  
-  phones = '+234' + phone;
+  const {
+    email,
+    password,
+    phone,
+    first_name,
+    last_name,
+    profile_pic,
+    rusername,
+  } = req.body;
+  console.log(email);
+
+  phones = "+234" + phone;
   console.log(phones);
 
   const code = generateVerificationCode();
@@ -21,9 +30,17 @@ exports.createUser = async (req, res) => {
       .json({ error: "Phone, email, and password are required" });
   }
   try {
-    
-    let test = await User.create(email, password, phones, code);
-    
+    console.log(phone);
+    let test = await User.create(
+      email,
+      password,
+      phone,
+      code,
+      first_name,
+      last_name,
+      profile_pic,
+      rusername
+    );
 
     if (test) {
       if (test) {
@@ -47,7 +64,6 @@ function generateVerificationCode() {
   // Generates a random integer between 100000 (inclusive) and 999999 (inclusive)
   return crypto.randomInt(1000, 9999);
 }
-
 
 function generateAnonymus() {
   // Generates a random integer between 100000 (inclusive) and 999999 (inclusive)
@@ -191,7 +207,6 @@ const getUserWallet = async(user_id) =>
 exports.verify = async (req, res) => {
   const { code, email } = req.body;
 
-
   try {
     // Check if user exists
     let user = await User.findByEmail(email);
@@ -255,11 +270,10 @@ exports.updateDetails = async (req, res) => {
       rusername
     );
 
-    
-       let wallet = await Wallet.createWallet(id,currency);
+    let wallet = await Wallet.createWallet(id, currency);
 
-       console.log(wallet);
-    
+    console.log(wallet);
+
     res.status(200).json({ message: "Updated successfully", id: user.id });
   } catch (err) {
     console.error(err.message);

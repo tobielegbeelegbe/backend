@@ -1,11 +1,20 @@
 const sequelize = require("../Config/sequalize_db");
+const Payment = require("./payment");
 const SplitBill = require("./splitbill");
 const SplitBillParticipant = require("./splitBillParticipant");
-// const User = require("./user");
+const SplitBillActivity = require("./splitBillActivity");
+const Refund = require("./refund");
 
 SplitBill.hasMany(SplitBillParticipant, {
   foreignKey: "split_bill_id",
   as: "participants",
+  onDelete: "CASCADE",
+});
+
+SplitBill.hasMany(SplitBillActivity, {
+  foreignKey: "split_bill_id",
+  as: "activities",
+  onDelete: "CASCADE",
 });
 
 SplitBillParticipant.belongsTo(SplitBill, {
@@ -13,14 +22,32 @@ SplitBillParticipant.belongsTo(SplitBill, {
   as: "bill",
 });
 
+SplitBillParticipant.hasMany(Payment, {
+  foreignKey: "participant_id",
+  as: "payments",
+  onDelete: "CASCADE",
+});
 
-// User.hasMany(SplitBill, { foreignKey: "creator_id", as: "createdBills" });
-// SplitBill.belongsTo(User, { foreignKey: "creator_id", as: "creator" });
+Payment.belongsTo(SplitBillParticipant, {
+  foreignKey: "participant_id",
+  as: "participant",
+});
 
-// User.hasMany(SplitBillParticipant, {
-//   foreignKey: "user_id",
-//   as: "billParticipation",
-// });
-// SplitBillParticipant.belongsTo(User, { foreignKey: "user_id", as: "user" });
+SplitBillActivity.belongsTo(SplitBill, {
+  foreignKey: "split_bill_id",
+  as: "bill",
+});
 
-module.exports = { sequelize, SplitBill, SplitBillParticipant };
+Refund.belongsTo(SplitBillParticipant, {
+  foreignKey: "participant_id",
+  as: "participant",
+});
+
+module.exports = {
+  sequelize,
+  SplitBill,
+  SplitBillParticipant,
+  Payment,
+  SplitBillActivity,
+  Refund,
+};
