@@ -10,6 +10,8 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR /app
 
+RUN npm install
+
 # Copy lockfile and fetch dependencies
 COPY pnpm-lock.yaml ./
 RUN --mount=type=cache,target=/pnpm/store \
