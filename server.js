@@ -12,6 +12,7 @@ const userRoute = require("./Routes/endpoints/user");
 const authRoute = require("./Routes/endpoints/auth");
 const adminRoute = require("./Routes/endpoints/admin");
 const backerRoute = require("./Routes/endpoints/backer");
+const donorRoute = require("./Routes/endpoints/donations");
 const campaignRoute = require("./Routes/endpoints/campaigns");
 const championRoute = require("./Routes/endpoints/champion");
 const followerRoute = require("./Routes/endpoints/follower");
@@ -27,6 +28,26 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/users", userRoute);
 app.use("/auth", authRoute);
+<<<<<<< HEAD
+=======
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use("/wallet", walletRoute);
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use("/donor", donorRoute);
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use("/follower", followerRoute);
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use("/champion", championRoute);
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use("/campaign", campaignRoute);
+app.use(express.static(path.join(__dirname, "public")));
+
+>>>>>>> c1db17ff1f783026e008c8f2b5077255c33f1f6b
 app.use("/admin", adminRoute);
 app.use("/backer", backerRoute);
 app.use("/campaign", campaignRoute);

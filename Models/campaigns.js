@@ -69,6 +69,20 @@ const createCampaign = async (campaignData) => {
   return { id: result.insertId, ...campaignData };
 };
 
+const updatAmount = async (id,debit) =>
+{
+
+  const [result] = await db.execute(
+    'UPDATE campaigns SET amount = amount - ? WHERE id = ?',
+                [debit, id]
+  );
+  
+  if (result.affectedRows === 0) {
+    throw new Error('Campaign not found');
+  }
+
+}
+
 // Update campaign by ID
 const updateCampaign = async (id, updateData) => {
   const { title, description, start_date, end_date, status } = updateData;
@@ -99,6 +113,7 @@ const updateCampaign = async (id, updateData) => {
     updateFields.push('status = ?');
     values.push(status);
   }
+  
   
   values.push(id);
   

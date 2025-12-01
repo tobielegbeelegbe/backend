@@ -44,6 +44,7 @@ exports.createUser = async (req, res) => {
 
     if (test) {
       if (test) {
+      
         console.log(code);
         very.sendWhatsapp(phones, code);
         res.json({ message: "Verification Code Sent to" + phones });
@@ -73,91 +74,135 @@ function generateAnonymus() {
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ msg: "Invalid Email or Phone" });
-  }
+    if (!email ||  !password) {
+      return res.status(400).json({ msg: "Invalid Email or Phone" });
+    }
 
   try {
-    await checkLogin(email, password).then(
-      function (result) {
+     
+   
+        await checkLogin(email,password).then(
+      function(result) {
         console.log("Promise fulfilled with:", result);
-        if (result) {
+        if(result)
+        {
+
           const token = jwt.sign(result, process.env.JWT_SECRET, {
-            expiresIn: "2h",
-          });
-          res.status(200).json({ msg: "Logged in successfully", token });
-        } else {
-          res.status(400).json({ msg: "Login Error" });
+         expiresIn: "2h",
+         });
+        res.status(200).json({ msg: "Logged in successfully", token });
+
         }
+        else
+        {
+          res.status(400).json({ msg: "Login Error"});
+        }
+        
       },
-      function (error) {
+      function(error) {
         console.error("Promise rejected with:", error);
       }
-    );
+    ); 
+    
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server error");
   }
 };
 
-const checkLogin = async (email, password) => {
-  try {
-    let user = await User.findByEmail(email);
+const checkLogin = async(email,password) =>
+{
+
+
+  try{
+
+  let user = await User.findByEmail(email);
     if (!user) {
-      console.log("user Not FOund");
-      return false;
+      console.log("user Not FOund")
+      return false
     }
 
-    console.log(user.id);
+    console.log(user.id); 
 
     // Compare passwords
+     
+      let userWallet =  await getUserWallet(user.id);
+      let payload
+      console.log(password)
+      await checkPassword(password,user.password_hash).then(
 
-    let userWallet = await getUserWallet(user.id);
-    let payload;
-    console.log(password);
-    await checkPassword(password, user.password_hash).then(
-      function (result) {
-        if (result) {
-          console.log("Promise fulfilled with:", result);
-          payload = { user: user, wallet: userWallet };
-        } else {
+      function(result) {
+        if(result)
+        {
+           console.log("Promise fulfilled with:", result);
+          payload = { user: user, wallet: userWallet};
+        }
+
+        else
+        {
           payload = false;
         }
       },
-      function (error) {
+      function(error) {
         console.error("Promise rejected with:", error);
+        
       }
     );
+      
 
-    return payload;
-  } catch (error) {
-    console.log(error);
+      
+
+      return payload
   }
-};
+  catch(error)
+  {
+    console.log(error)
+  }
 
-const checkPassword = async (password, lpassword) => {
-  try {
+}
+
+
+const checkPassword = async(password,lpassword) =>
+{
+     try
+    {
     const isMatch = await bcrypt.compare(password, lpassword);
-    if (!isMatch) {
-      return false;
-    } else return true;
-  } catch (error) {
-    console.log(error);
-  }
-};
+      if (!isMatch) {
+        return false;
+      }
+      else
+        return true;
+    }
+    catch(error)
+    {
+      console.log(error)
+    }
 
-const getUserWallet = async (user_id) => {
-  try {
-    let user_wallet = Wallet.getUserWallet(user_id);
 
-    if (!user_wallet) {
-      user_wallet = Wallet.createWallet(user_id, "Naira");
-      return "No User Wallet Found";
-    } else return user_wallet;
-  } catch (error) {
-    console.log(error);
-  }
-};
+}
+
+const getUserWallet = async(user_id) =>
+{
+     try
+    {
+        let user_wallet = Wallet.getUserWallet(user_id);
+
+        if(!user_wallet)
+        {
+          user_wallet = Wallet.createWallet(user_id,'Naira');
+          return  "No User Wallet Found";
+          
+        }
+        else
+        return user_wallet;
+    }
+    catch(error)
+    {
+      console.log(error)
+    }
+
+
+}
 
 exports.verify = async (req, res) => {
   const { code, email } = req.body;
@@ -182,8 +227,10 @@ exports.verify = async (req, res) => {
   }
 };
 
+
 exports.verifyPin = async (req, res) => {
   const { code, email } = req.body;
+
 
   try {
     // Check if user exists
@@ -196,6 +243,7 @@ exports.verifyPin = async (req, res) => {
     console.log(user.pin);
     console.log(code);
     if (user.pin == code) {
+      
       res.status(200).json({ message: "Verified successfully", id: user.id });
     }
   } catch (err) {
@@ -206,11 +254,11 @@ exports.verifyPin = async (req, res) => {
 
 exports.updateDetails = async (req, res) => {
   const { id, first_name, last_name, username } = req.body;
-  const currency = "Naira";
+  const currency = 'Naira';
   console.log(id);
   console.log(first_name);
   const random = generateAnonymus();
-  const rusername = "Anonymus" + random;
+  const rusername = 'Anonymus' + random;
   console.log(rusername);
   try {
     // Check if user exists
