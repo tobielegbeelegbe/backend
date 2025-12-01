@@ -1,6 +1,13 @@
+require("dotenv").config();
+
 const express = require("express");
+const path = require("path");
+const sequelize = require("./Config/sequalize_db");
+
 const app = express();
-const PORT = process.env.PORT || 3000; // Use environment variable or default to 3000
+const PORT = process.env.PORT || 3000;
+
+const globalErrorHandler = require("./helpers/globalErrorHandler");
 
 const userRoute = require("./Routes/endpoints/user");
 const authRoute = require("./Routes/endpoints/auth");
@@ -13,44 +20,25 @@ const followerRoute = require("./Routes/endpoints/follower");
 const walletRoute = require("./Routes/endpoints/wallets");
 const splitBillRoute = require("./Routes/endpoints/splitbill");
 const notificationRoutes = require("./Routes/endpoints/notifications");
-
-const path = require("path");
+const uploadRoute = require("./Routes/endpoints/upload");
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/notifications", notificationRoutes);
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/users", userRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/split-bill", splitBillRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
 app.use("/auth", authRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/wallet", walletRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/donor", donorRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/follower", followerRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/champion", championRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use("/campaign", campaignRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
 app.use("/admin", adminRoute);
-app.use(express.static(path.join(__dirname, "public")));
-
 app.use("/backer", backerRoute);
-app.use(express.static(path.join(__dirname, "public")));
+app.use("/donor", donorRoute);
+app.use("/campaign", campaignRoute);
+app.use("/champion", championRoute);
+app.use("/follower", followerRoute);
+app.use("/wallet", walletRoute);
+app.use("/split-bill", splitBillRoute);
+app.use("/notifications", notificationRoutes);
+app.use("/upload", uploadRoute);
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "views", "main.html"));
@@ -60,7 +48,7 @@ app.get("/register", (req, res) => {
   res.sendFile(path.join(__dirname, "views", "register.html"));
 });
 
-app.get("/createcampain", (req, res) => {
+app.get("/createcampaign", (req, res) => {
   res.sendFile(path.join(__dirname, "views", "campaign.html"));
 });
 
@@ -68,17 +56,33 @@ app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, "views", "login.html"));
 });
 
-process
-  .on('unhandledRejection', (reason, p) => {
-    console.error(reason, 'Unhandled Rejection at Promise', p);
-  })
-  
-process.on('uncaughtException', function (err) {
-  console.error((new Date).toUTCString() + ' uncaughtException:', err.message)
-  console.error(err.stack)
-  process.exit(1)
-})
+app.use(globalErrorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+process.on("unhandledRejection", (reason, p) => {
+  console.error("Unhandled Rejection:", reason);
 });
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  process.exit(1);
+});
+
+const startServer = async () => {
+  try {
+    await sequelize.authenticate();
+    console.log("✅ Database connection established successfully.");
+    console.log(
+      "⚠️ Use migrations for schema changes: npx sequelize-cli db:migrate"
+    );
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📍 Environment: ${process.env.NODE_ENV || "development"}`);
+    });
+  } catch (error) {
+    console.error("❌ Unable to start server:", error);
+    process.exit(1);
+  }
+};
+
+startServer();

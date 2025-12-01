@@ -1,43 +1,38 @@
-const  Wallet  = require('../../Models/wallet');
+const Wallet = require("../../Models/wallet");
 
 // Create a new wallet for a user
 exports.createWallet = async (userId, currency) => {
-  try {    
+  try {
     //console.log(Wallet)
-    const wallet = await Wallet.create( userId, currency );
+    const wallet = await Wallet.create(userId, currency);
     //console.log(wallet)
     //return wallet;
   } catch (error) {
-    return error.message ;
+    return error.message;
   }
 };
 
 exports.getWallets = async (req, res) => {
   try {
-    
     const wallet = await Wallet.getWallets();
     if (wallet) {
       res.status(200).json(wallet);
     } else {
-      res.status(404).json({ message: 'Wallet not found' });
+      res.status(404).json({ message: "Wallet not found" });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-
 exports.getUserWallet = async (userId) => {
   try {
-    
-    
     const wallet = await Wallet.getWallet(userId);
-    
+
     if (wallet) {
-      
       return wallet;
     } else {
-      console.log('Wallet not found');
+      console.log("Wallet not found");
     }
   } catch (error) {
     console.log(error.message);
@@ -53,7 +48,7 @@ exports.getWallet = async (req, res) => {
     if (wallet) {
       res.status(200).json(wallet);
     } else {
-      res.status(404).json({ message: 'Wallet not found' });
+      res.status(404).json({ message: "Wallet not found" });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -67,7 +62,7 @@ exports.getWalletBalance = async (req, res) => {
     if (wallet) {
       res.status(200).json(wallet);
     } else {
-      res.status(404).json({ message: 'Wallet not found' });
+      res.status(404).json({ message: "Wallet not found" });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -82,10 +77,10 @@ exports.addFunds = async (req, res) => {
 
     const wallet = await Wallet.getWallet(userId);
     if (wallet) {
-      const update = await Wallet.addWalletBalance( userId, amount);
+      const update = await Wallet.addWalletBalance(userId, amount);
       res.status(200).json(wallet);
     } else {
-      res.status(404).json({ message: 'Wallet not found' });
+      res.status(404).json({ message: "Wallet not found" });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -99,27 +94,26 @@ exports.removeFunds = async (req, res) => {
 
     const wallet = await Wallet.getWallet(userId);
     if (wallet) {
-      const update = await Wallet.minusWalletBalance( userId, amount);
+      const update = await Wallet.minusWalletBalance(userId, amount);
       res.status(200).json(wallet);
     } else {
-      res.status(404).json({ message: 'Wallet not found' });
+      res.status(404).json({ message: "Wallet not found" });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-exports.deleteWallet  = async (req, res) => {
+exports.deleteWallet = async (req, res) => {
   const { id } = req.params;
   try {
-    const [result] = await db.execute('DELETE FROM Wallet WHERE id = ?', [id]);
+    const [result] = await db.execute("DELETE FROM Wallet WHERE id = ?", [id]);
     if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Wallet  not found' });
+      return res.status(404).json({ error: "Wallet  not found" });
     }
-    res.status(200).json({ message: 'Wallet  deleted successfully' });
+    res.status(200).json({ message: "Wallet  deleted successfully" });
   } catch (error) {
-    console.error('Error deleting Wallet:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error deleting Wallet:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
-

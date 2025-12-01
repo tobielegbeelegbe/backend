@@ -2,13 +2,14 @@
 const { S3Client,PutObjectCommand,ListBucketsCommand,S3ServiceException } = require("@aws-sdk/client-s3");
 const { readFile } = require( "node:fs/promises");
 const { Upload } = require("@aws-sdk/lib-storage");
+require('dotenv').config(); // Load environment variables
 
     const r2 = new S3Client({
         region: "auto", // Or a specific region if required by your R2 setup
-        endpoint: `https://235e26cc351b50a91a8aa9d25f3e4a89.r2.cloudflarestorage.com`,
+        endpoint: process.env.CloudFlare_endpoint,
         credentials: {
-            accessKeyId: '1bb90867ae9f41ee5636a6012dd4a2ff',
-            secretAccessKey: '81db0a29d90035565ca7e41d5694e9f6660d970213d82bd0689398c75d7c1d89',
+            accessKeyId: process.env.CloudFlare_accessKeyId,
+            secretAccessKey: process.env.CloudFlare_secretAccessKey,
         },
     });
 
