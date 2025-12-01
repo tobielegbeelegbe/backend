@@ -82,7 +82,6 @@ const getUserSplitBills = async (req, res, next) => {
       pagination: result.pagination,
     });
   } catch (error) {
-    console.error("Error fetching bill:", error);
     next(error);
   }
 };

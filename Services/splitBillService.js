@@ -251,9 +251,6 @@ class SplitBillService {
       whereClause.status = status;
     }
 
-    let bills;
-    let total;
-
     if (role === "creator") {
       const result = await SplitBill.findAndCountAll({
         where: { creator_id: userId, ...whereClause },
@@ -268,10 +265,81 @@ class SplitBillService {
         limit,
         offset,
       });
-      bills = result.rows;
-      total = result.count;
-    } else if (role === "participant") {
-      const participantBills = await SplitBillParticipant.findAndCountAll({
+
+      const total = await SplitBill.count({
+        where: { creator_id: userId, ...whereClause },
+      });
+
+      return {
+        bills: result.rows,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(result.count / limit),
+        },
+      };
+    }
+
+    if (role === "participant") {
+      const participantRows = await SplitBillParticipant.findAll({
+        where: { user_id: userId },
+        include: [
+          {
+            model: SplitBill,
+            as: "bill",
+            where: whereClause,
+            include: [
+              {
+                model: SplitBillParticipant,
+                as: "participants",
+                attributes: ["id", "status", "amount_owed", "amount_paid"],
+              },
+            ],
+          },
+        ],
+        limit,
+        offset,
+      });
+
+      const formatted = participantRows.map((p) => ({
+        ...p.bill.toJSON(),
+        user_participant_status: p.status,
+        user_amount_owed: p.amount_owed,
+        user_amount_paid: p.amount_paid,
+        is_participant: true,
+      }));
+
+      formatted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      const total = await SplitBillParticipant.count({
+        where: { user_id: userId },
+      });
+
+      return {
+        bills: formatted,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    }
+
+    const [createdBills, participantRows] = await Promise.all([
+      SplitBill.findAll({
+        where: { creator_id: userId, ...whereClause },
+        include: [
+          {
+            model: SplitBillParticipant,
+            as: "participants",
+            attributes: ["id", "status", "amount_owed", "amount_paid"],
+          },
+        ],
+      }),
+
+      SplitBillParticipant.findAll({
         where: { user_id: userId },
         include: [
           {
@@ -280,75 +348,41 @@ class SplitBillService {
             where: whereClause,
           },
         ],
-        order: [[{ model: SplitBill, as: "bill" }, "created_at", "DESC"]],
-        limit,
-        offset,
-      });
+      }),
+    ]);
 
-      bills = participantBills.rows.map((p) => ({
-        ...p.bill.toJSON(),
-        user_participant_status: p.status,
-        user_amount_owed: p.amount_owed,
-        user_amount_paid: p.amount_paid,
-      }));
-      total = participantBills.count;
-    } else {
-      const [createdBills, participantData] = await Promise.all([
-        SplitBill.findAll({
-          where: { creator_id: userId, ...whereClause },
-          include: [
-            {
-              model: SplitBillParticipant,
-              as: "participants",
-              attributes: ["id", "status", "amount_owed", "amount_paid"],
-            },
-          ],
-          order: [["created_at", "DESC"]],
-        }),
-        SplitBillParticipant.findAll({
-          where: { user_id: userId },
-          include: [
-            {
-              model: SplitBill,
-              as: "bill",
-              where: whereClause,
-            },
-          ],
-        }),
-      ]);
+    const participantBills = participantRows.map((p) => ({
+      ...p.bill.toJSON(),
+      user_participant_status: p.status,
+      user_amount_owed: p.amount_owed,
+      user_amount_paid: p.amount_paid,
+      is_participant: true,
+    }));
 
-      const participantBills = participantData.map((p) => ({
-        ...p.bill.toJSON(),
-        user_participant_status: p.status,
-        user_amount_owed: p.amount_owed,
-        user_amount_paid: p.amount_paid,
-        is_participant: true,
-      }));
+    const billMap = new Map();
 
-      const billMap = new Map();
+    createdBills.forEach((b) => {
+      billMap.set(b.id, { ...b.toJSON(), is_creator: true });
+    });
 
-      createdBills.forEach((b) => {
-        billMap.set(b.id, { ...b.toJSON(), is_creator: true });
-      });
+    participantBills.forEach((b) => {
+      if (billMap.has(b.id)) {
+        billMap.set(b.id, { ...billMap.get(b.id), ...b });
+      } else {
+        billMap.set(b.id, b);
+      }
+    });
 
-      participantBills.forEach((b) => {
-        if (billMap.has(b.id)) {
-          billMap.set(b.id, { ...billMap.get(b.id), ...b });
-        } else {
-          billMap.set(b.id, b);
-        }
-      });
+    let bills = Array.from(billMap.values());
 
-      bills = Array.from(billMap.values()).sort(
-        (a, b) => new Date(b.created_at) - new Date(a.created_at)
-      );
-      total = bills.length;
+    bills.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-      bills = bills.slice(offset, offset + limit);
-    }
+    const total = bills.length;
+
+    const paginatedBills = bills.slice(offset, offset + limit);
 
     return {
-      bills,
+      bills: paginatedBills,
       pagination: {
         page,
         limit,
