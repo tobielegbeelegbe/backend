@@ -194,11 +194,13 @@ const createCampaign  = async (req, res) => {
 
   if(moffers != null)
   {
-  mofferAsString = JSON.stringify(moffers);
+  amoffers = JSON.parse(moffers);
+  mofferAsString = JSON.stringify(amoffers);
   }
 
   if(aoffers != null)
   {
+  asoffers = JSON.parse(aoffers);
   aofferAsString = JSON.stringify(aoffers);
   }
 
