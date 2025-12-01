@@ -8,7 +8,7 @@ RUN corepack enable
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-WORKDIR /app
+WORKDIR /
 
 RUN npm install
 
