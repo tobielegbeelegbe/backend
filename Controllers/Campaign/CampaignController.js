@@ -39,7 +39,7 @@ const getCampaigns = async (req, res) => {
 
            console.log(result); // result will contain the fetched data
            await con.release();
-                res.send(result);
+            res.send(result);
           
              // res.status(200).json(result);
       } catch (error) {
@@ -72,15 +72,16 @@ const getCampaignById = async (req, res) => {
             "SELECT * FROM offers where campaign_id = ? ",[id]
         );
 
-    
+    const myArray = JSON.parse(rows[0].moffer);
+    const myArrays = JSON.parse(rows[0].aoffer);
+    console.log(rows[0].id)
+    rows[0].moffer = myArray;
+    rows[0].aoffer = myArrays;
+              
     const payload = { campaigns: rows[0], donors: donors, offers: offers};
     await con.release();
-        res.status(200).json({ msg: "Campaign Loaded successfully", payload });
+    res.status(200).json({ msg: "Campaign Loaded successfully", payload });
     
-    console.log(rows[0]); // result will contain the fetched data
-    console.log(donors);
-    //res.send(rows[0]);
-              
     
   } catch (error) {
     console.error('Error fetching Campaign:', error);
@@ -97,7 +98,7 @@ const getCampaignByName = async (req, res) => {
     const [rows] = await pool.execute(
             "SELECT * FROM campaigns where title = ? ",[name]
         );
-    
+    await con.release();
     console.log(rows[0]); // result will contain the fetched data
     res.send(rows[0]);
               
@@ -193,14 +194,12 @@ const createCampaign  = async (req, res) => {
 
   if(moffers != null)
   {
-  moffer = JSON.parse(moffers);
-  mofferAsString = JSON.stringify(moffer);
+  mofferAsString = JSON.stringify(moffers);
   }
 
   if(aoffers != null)
   {
-  aoffer = JSON.parse(aoffers);
-  aofferAsString = JSON.stringify(aoffer);
+  aofferAsString = JSON.stringify(aoffers);
   }
 
   
