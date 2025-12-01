@@ -38,6 +38,7 @@ const getCampaigns = async (req, res) => {
            const result = await con.execute(sql);
 
            console.log(result); // result will contain the fetched data
+           await con.release();
                 res.send(result);
           
              // res.status(200).json(result);
@@ -45,6 +46,9 @@ const getCampaigns = async (req, res) => {
         console.error('Error fetching Campaigns:', error);
         res.status(500).json({ error: 'Internal server error' });
       }
+      
+
+
 };
 
 // Get Campaign by ID
@@ -70,7 +74,7 @@ const getCampaignById = async (req, res) => {
 
     
     const payload = { campaigns: rows[0], donors: donors, offers: offers};
-    
+    await con.release();
         res.status(200).json({ msg: "Campaign Loaded successfully", payload });
     
     console.log(rows[0]); // result will contain the fetched data
