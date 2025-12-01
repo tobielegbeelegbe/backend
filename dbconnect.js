@@ -1,4 +1,5 @@
 require("dotenv").config(); // Load environment variables
+var util = require('util');
 
 const mysql = require("mysql2/promise"); // Using mysql2 with promises
 
