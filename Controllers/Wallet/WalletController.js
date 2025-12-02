@@ -3,10 +3,9 @@ const Wallet = require("../../Models/wallet");
 // Create a new wallet for a user
 exports.createWallet = async (userId, currency) => {
   try {
-    //console.log(Wallet)
+    
     const wallet = await Wallet.create(userId, currency);
-    //console.log(wallet)
-    //return wallet;
+    
   } catch (error) {
     return error.message;
   }
@@ -43,7 +42,7 @@ exports.getUserWallet = async (userId) => {
 exports.getWallet = async (req, res) => {
   try {
     const { userId } = req.params;
-    console.log(userId);
+    
     const wallet = await Wallet.getWallet({ where: { userId } });
     if (wallet) {
       res.status(200).json(wallet);
@@ -72,13 +71,21 @@ exports.getWalletBalance = async (req, res) => {
 // Add funds to a wallet
 exports.addFunds = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { id } = req.params;
     const { amount } = req.body;
 
-    const wallet = await Wallet.getWallet(userId);
+
+    const wallet = await Wallet.getWallet(id);
     if (wallet) {
-      const update = await Wallet.addWalletBalance(userId, amount);
-      res.status(200).json(wallet);
+      const update = await Wallet.addWalletBalance(id, amount);
+      
+      if(update != null)
+      {
+        const wallets = await Wallet.getWallet(id);
+        const payload = {wallets: wallets}
+        res.status(200).json(payload);
+      }
+      
     } else {
       res.status(404).json({ message: "Wallet not found" });
     }

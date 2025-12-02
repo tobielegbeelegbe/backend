@@ -91,23 +91,51 @@ const getCampaignById = async (req, res) => {
 
 const getCampaignByName = async (req, res) => {
 
-  const { name } = req.params;
+  const { id } = req.params;
+
+  console.log(id);
   try {
     const con = await pool.getConnection();
 
     const [rows] = await pool.execute(
-            "SELECT * FROM campaigns where title = ? ",[name]
+            "SELECT * FROM campaigns where id = ? ",[id]
         );
-    await con.release();
-    console.log(rows[0]); // result will contain the fetched data
-    res.send(rows[0]);
+
+    const [donors] = await pool.execute(
+            "SELECT * FROM donors where campaign_id = ? ",[rows[0].id]
+        );
+
+    const [offers] = await pool.execute(
+            "SELECT * FROM offers where campaign_id = ? ",[rows[0].id]
+        );
+
+    const myArray = JSON.parse(rows[0].moffer);
+    const myArrays = JSON.parse(rows[0].aoffer);
+    console.log(rows[0].id)
+    rows[0].moffer = myArray;
+    rows[0].aoffer = myArrays;
               
+    const payload = { campaigns: rows[0], donors: donors, offers: offers};
+    await con.release();
+    res.status(200).json({ msg: "Campaign Loaded successfully", payload });
+    
     
   } catch (error) {
     console.error('Error fetching Campaign:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+function generateRandomString(length, characterSet) {
+  let result = '';
+  const charactersLength = characterSet.length;
+  for (let i = 0; i < length; i++) {
+    result += characterSet.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+}
+
+
 
 const viewDetails = async(req,res) =>
 {
@@ -181,7 +209,7 @@ function dateFormat(fDate)
 // Create a new Campaign
 const createCampaign  = async (req, res) => {
   const con = await pool.getConnection();
-  const { title, description,startDate,endDate,amount,id,stakeholders,category,moffers, aoffers} = req.body;
+  const { title, description,startDate,endDate,amount,id,stakeholders,category,moffers, aoffers, sharetitle} = req.body;
 
   const convert = dateFormat(endDate);
   const converts = dateFormat(startDate);
@@ -191,6 +219,8 @@ const createCampaign  = async (req, res) => {
 
   let mofferAsString;
   let aofferAsString;
+
+ 
 
   if(moffers != null)
   {
@@ -244,8 +274,8 @@ const createCampaign  = async (req, res) => {
   
     // In production: const hashedPassword = await bcrypt.hash(password, 10);
 
-      const sql = "INSERT INTO `campaigns`( `creator_id`, `title`, `description`,`start_date`, `end_date`, `goal_amount`, `current_amount`,`approved`,`host`,`images`,`category`,`image`,`moffer`,`aoffer`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-      const values = [id,title,description,converts,convert,amount,0,0,hosts,stringImages,category,img[0],mofferAsString,aofferAsString]
+      const sql = "INSERT INTO `campaigns`( `creator_id`, `title`, `description`,`start_date`, `end_date`, `goal_amount`, `current_amount`,`approved`,`host`,`images`,`category`,`image`,`moffer`,`aoffer`,`share`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+      const values = [id,title,description,converts,convert,amount,0,0,hosts,stringImages,category,img[0],mofferAsString,aofferAsString,sharetitle]
       const result = await con.execute(sql,values);
       console.log(result);
      console.log(stringImages);
