@@ -14,10 +14,10 @@ router.use(express.urlencoded({ extended: true }));
 
 // Routes
 router.get("/", getWallets);
-router.get("/getWallet:id", getWallet);
+router.get("/getWallet/:id", getWallet);
 router.post("/create", createWallet);
-router.put("/addFunds:id", addFunds);
-router.put("/removeFunds:id", removeFunds);
-router.delete("/:id", deleteWallet);
+router.put("/addFunds/:id", addFunds);
+router.put("/removeFunds/:id", removeFunds);
+router.delete("/delete/:id", deleteWallet);
 
 module.exports = router;

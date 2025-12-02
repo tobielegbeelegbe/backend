@@ -39,10 +39,11 @@ class Wallet {
     }
 
     static async addWalletBalance(id, amount) {
-        await pool.execute(
-            'UPDATE wallets SET balance = balance + ? WHERE id = ?',
+        const [rows] = await pool.execute(
+            'UPDATE wallets SET balance = balance + ? WHERE user_id = ?',
             [amount, id]
         );
+        return rows.changedRows;
     }
 
     static async minusWalletBalance(id, amount) {

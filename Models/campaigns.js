@@ -153,5 +153,6 @@ module.exports = {
   getCampaignByName,
   getCategory,
   getApproval,
+  updatAmount,
   stakeholderApproval,
 };
