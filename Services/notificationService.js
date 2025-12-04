@@ -1,25 +1,37 @@
 const Notification = require("../Models/notifications");
 const { SplitBill, SplitBillParticipant } = require("../Models");
+const SplitBillService = require("./splitBillService");
+const SmsService = require("./smsService");
+const SmsTemplate = require("../Template/SmsTemplate");
 
 module.exports = {
   async notifyParticipantsCreated(bill, creatorId) {
-    const participants = bill.participants || [];
+    const participants = bill.participants;
     const notifications = [];
 
     for (const p of participants) {
       if (p.user_id) {
-        const message = `You were added to the split bill "${bill.title}"`;
-
         notifications.push({
           user_id: p.user_id,
-          message,
+          message: `You were added to the split bill "${bill.title}"`,
           type: "split_bill",
           campaign_id: null,
         });
+      } else {
+        const link = SplitBillService.generateLink(p.id);
 
-        console.log(
-          `📩 Notification → User ${p.user_id}: You were added to bill "${bill.title}"`
+        await SplitBillParticipant.update(
+          { payment_link: link },
+          { where: { id: p.id } }
         );
+
+        const smsBody = SmsTemplate.guestAddedToBill({
+          name: p.guest_name,
+          billTitle: bill.title,
+          link,
+        });
+
+        await SmsService.send({ to: p.guest_phone, message: smsBody });
       }
     }
 
@@ -34,10 +46,6 @@ module.exports = {
     for (const n of notifications) {
       await Notification.create(n);
     }
-
-    console.log(
-      `📩 Notification → User ${creatorId} created this split bill: You were added to bill "${bill.title}"`
-    );
 
     return true;
   },
@@ -79,6 +87,21 @@ module.exports = {
           type: "split_bill",
           campaign_id: null,
         });
+      } else {
+        const link = SplitBillService.generateLink(p.id);
+
+        await SplitBillParticipant.update(
+          { payment_link: link },
+          { where: { id: p.id } }
+        );
+
+        const smsBody = SmsTemplate.guestAddedToBill({
+          name: p.guest_name,
+          billTitle: bill.title,
+          link,
+        });
+
+        await SmsService.send({ to: p.guest_phone, message: smsBody });
       }
     }
   },
@@ -128,6 +151,45 @@ module.exports = {
           campaign_id: null,
         });
       }
+    }
+  },
+
+  async paymentAppliedAsGuest(result, participantId) {
+    const bill = await SplitBill.findByPk(result.billId, {
+      include: [{ model: SplitBillParticipant, as: "participants" }],
+    });
+
+    const participant = bill.participants.find((p) => p.id === participantId);
+
+    if (participant.guest_phone) {
+      const smsBody = SmsTemplate.guestPaymentMade({
+        name: participant.guest_name || "Guest",
+        billTitle: bill.title,
+        amount: result.amount,
+        amountOwed: result.amountOwed,
+        remaining: result.remainingAmount,
+      });
+
+      await SmsService.send({
+        to: participant.guest_phone,
+        message: smsBody,
+      });
+    }
+
+    for (const p of bill.participants) {
+      if (!p.user_id) continue;
+
+      const message =
+        p.id === participantId
+          ? `Your payment of ${result.amountPaid} was applied to bill "${bill.title}".`
+          : `A guest paid ${result.amountPaid} in bill "${bill.title}".`;
+
+      await Notification.create({
+        user_id: p.user_id,
+        message,
+        type: "split_bill",
+        campaign_id: null,
+      });
     }
   },
 
