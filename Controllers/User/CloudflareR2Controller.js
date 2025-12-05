@@ -13,6 +13,8 @@ require('dotenv').config(); // Load environment variables
         },
     });
 
+    const bucket = 'greyfundr'
+
  const listS3Buckets = async() =>{
   try {
     const data = await r2.send(new ListBucketsCommand({}));
@@ -22,39 +24,90 @@ require('dotenv').config(); // Load environment variables
   }
 }
 
- const saveimage = async ({ bucketName, key, body,contentType }) => {
-        console.log(body);
-        console.log(bucketName);
-        console.log(key);
-        const upload = new Upload({
-        client: r2,
-        params: {
-          Bucket: bucketName,
-          Key: key,
-          Body: filePath, // The readable stream
-          // You can add other S3 PutObjectCommand parameters here, e.g., ContentType
-          // ContentType: 'application/octet-stream',
-        },
-      });
-    
-      upload.on("httpUploadProgress", (progress) => {
-        console.log(progress); // Log upload progress
-      });
-    
-      try {
-        const data = await upload.done();
-        console.log("Upload successful:", data);
-        return data;
-      } catch (error) {
-        console.error("Error uploading file:", error);
-        throw error;
-      }
-};
+ const saveimage = async (key, body ) => {
+ const upload = new Upload({
+           client: r2,
+           params: {
+             Bucket: bucket,
+             Key: key,
+             Body: body, // The readable stream
+             // You can add other S3 PutObjectCommand parameters here, e.g., ContentType
+             // ContentType: 'application/octet-stream',
+           },
+         });
+       
+         upload.on("httpUploadProgress", (progress) => {
+           console.log(progress); // Log upload progress
+         });
+       
+         try {
+           const data = await upload.done();
+           console.log("Upload successful:", data);
+           return data;
+         } catch (error) {
+           console.error("Error uploading file:", error);
+           throw error;
+         }
+   }
 // snippet-end:[s3.JavaScript.buckets.uploadV3]
+
+
+const uploadBudget = async(req,res) => {
+  
+  console.log(req.files);
+  if (req.files)
+  {
+
+    const file = req.files[0];
+
+    let key;
+
+    if(file.mimetype == 'application/pdf')
+    {
+        key = `${bucket}/document/${Date.now()}-${file.originalname}`
+    }
+    else
+    {
+        key = `${bucket}/images/${Date.now()}-${file.originalname}`
+    }
+
+          
+          const body = file.buffer;
+          const type = file.mimetype
+
+          const upload = new Upload({
+                    client: r2,
+                    params: {
+                      Bucket: bucket,
+                      Key: key,
+                      Body: body, // The readable stream
+                      // You can add other S3 PutObjectCommand parameters here, e.g., ContentType
+                      // ContentType: 'application/octet-stream',
+                    },
+                  });
+       
+         upload.on("httpUploadProgress", (progress) => {
+           console.log(progress); // Log upload progress
+         });
+       
+         try {
+           const data = await upload.done();
+           console.log("Upload successful:", data);
+            res.status(200).json({ msg: 'Image Created successfully', id: key });
+           
+           return data;
+         } catch (error) {
+           console.error("Error uploading file:", error);
+           throw error;
+         }
+
+        }
+   }
 
 
 module.exports = {
   listS3Buckets,
   saveimage,
+  uploadBudget,
 };
 

@@ -68,6 +68,12 @@ router.post(
   SplitBillController.applyPayment
 );
 
+router.post(
+  "/pay/:id",
+  validateRequest(applyPaymentSchema),
+  SplitBillController.payAsGuest
+);
+
 router.post("/:id/finalize", verifyToken, SplitBillController.finalizeBill);
 
 router.get(

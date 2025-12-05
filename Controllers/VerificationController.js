@@ -5,7 +5,7 @@ function sendText(phone,code) {
       var data = {
                 "to":phone,
                 "from":"GreyFundr",
-                "sms":"Please Find Your 4 Digit Code from GreyFundr " + code,
+                "sms":"Please Find Your 4 Digit Code from GreyFundr" + code,
                 "type":"plain",
                 "api_key":"TLkRwoqVGUpzTdsffRGPjilxXvEqVXeElcfqpYWlNXYeyFOSZyvNIqtIJBNHLb",
                 "channel":"generic",
@@ -34,7 +34,7 @@ function sendText(phone,code) {
       var data = {
               "to":phone,
               "from":"GreyFundr",
-              "sms":"Plese Find Your 4 Digit Code from GreyFundr" + code,
+              "sms":"Please Find Your 4 Digit Code from GreyFundr" + code,
               "type":"plain",
               "api_key":"TLkRwoqVGUpzTdsffRGPjilxXvEqVXeElcfqpYWlNXYeyFOSZyvNIqtIJBNHLb",
               "channel":"generic",

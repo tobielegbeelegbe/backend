@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const Campaign = require('../../Models/campaigns')
 const Notify = require('../Notifications/NotifyController')
 const Host = require('../Host/HostController')
+const Budget = require('../../Models/budget')
 
 
 const { S3Client,PutObjectCommand,ListBucketsCommand,S3ServiceException } = require("@aws-sdk/client-s3");
@@ -209,7 +210,7 @@ function dateFormat(fDate)
 // Create a new Campaign
 const createCampaign  = async (req, res) => {
   const con = await pool.getConnection();
-  const { title, description,startDate,endDate,amount,id,stakeholders,category,moffers, aoffers, sharetitle} = req.body;
+  const { title, budget, description,startDate,endDate,amount,id,stakeholders,category,moffers, aoffers, sharetitle} = req.body;
 
   const convert = dateFormat(endDate);
   const converts = dateFormat(startDate);
@@ -217,8 +218,19 @@ const createCampaign  = async (req, res) => {
   stakeholder = JSON.parse(stakeholders);
   hosts = stakeholder.length;
 
+  
   let mofferAsString;
   let aofferAsString;
+  let budgetAsString;
+
+  if(budget != null)
+  {
+    budgets = JSON.parse(budget);
+    budgetAsString = JSON.stringify(budgets);
+
+  }
+ 
+
 
  
 
@@ -274,11 +286,17 @@ const createCampaign  = async (req, res) => {
   
     // In production: const hashedPassword = await bcrypt.hash(password, 10);
 
-      const sql = "INSERT INTO `campaigns`( `creator_id`, `title`, `description`,`start_date`, `end_date`, `goal_amount`, `current_amount`,`approved`,`host`,`images`,`category`,`image`,`moffer`,`aoffer`,`share`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-      const values = [id,title,description,converts,convert,amount,0,0,hosts,stringImages,category,img[0],mofferAsString,aofferAsString,sharetitle]
+      const sql = "INSERT INTO `campaigns`( `creator_id`, `title`, `description`,`start_date`, `end_date`, `goal_amount`, `current_amount`,`approved`,`host`,`images`,`category`,`image`,`moffer`,`aoffer`,`share`,`budget`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+      const values = [id,title,description,converts,convert,amount,0,0,hosts,stringImages,category,img[0],mofferAsString,aofferAsString,sharetitle,budgetAsString]
       const result = await con.execute(sql,values);
       console.log(result);
      console.log(stringImages);
+
+     if(result)
+     {
+        const budgetid = await saveBudget();
+        
+     }
       
      if(stakeholders.length > 0)
      {
@@ -304,6 +322,29 @@ const createCampaign  = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+const saveBudget = async(budget,campaigid) =>
+{
+  try{
+
+    for (const product of budget) {
+
+          let campaign = await Budget.createBudget(product,campaigid);
+          console.log(campaign);
+          if (!campaign) {
+            return res.status(400).json({ msg: 'No Categories' });
+          }
+        
+       }
+
+  }
+  catch(error)
+  {
+    console.log(error)
+  }
+
+
+}
 
 // Update Campaign by ID
 const updateCampaign  = async (req, res) => {

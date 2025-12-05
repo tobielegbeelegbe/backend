@@ -9,15 +9,28 @@
 
 const pool = require('../dbconnect');
 const crypto = require('crypto');
+const { S3Client,PutObjectCommand,ListBucketsCommand,S3ServiceException } = require("@aws-sdk/client-s3");
+const { readFile } = require( "node:fs/promises");
+const { Upload } = require("@aws-sdk/lib-storage");
+
+
+    const r2 = new S3Client({
+        region: "auto", // Or a specific region if required by your R2 setup
+        endpoint: process.env.CloudFlare_endpoint,
+        credentials: {
+            accessKeyId: process.env.CloudFlare_accessKeyId,
+            secretAccessKey: process.env.CloudFlare_secretAccessKey,
+        },
+    });
 
 
 
 // Get all users
 const getUsers = async (req, res) => {
-  const con = await pool.getConnection();
+ 
   try {
           console.log("TEST DATA :");
-          const result = await con.execute("SELECT * FROM users")
+          const result = await pool.execute("SELECT * FROM users")
           
               
                 console.log(result); // result will contain the fetched data
@@ -28,10 +41,7 @@ const getUsers = async (req, res) => {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-  finally
-  {
-    con.release();
-  }
+
 };
 
 // Get user by ID
@@ -39,7 +49,6 @@ const getUserById = async (req, res) => {
   const { id } = req.params;
   try {
       
-        const con = await pool.getConnection();
 
     const [rows] = await pool.execute(
             "SELECT * FROM users where id = ? ",[id]
@@ -88,22 +97,26 @@ function generateVerificationCode() {
 const updateUser  = async (req, res) => {
   const { id } = req.params;
   const { first_name, last_name, username } = req.body;
-  if (!name && !email && !password) {
+  
+  if (!first_name && !username && !last_name) {
     return res.status(400).json({ error: 'At least one field (name, email, or password) must be provided' });
   }
   try {
     // In production: if (password) { const hashedPassword = await bcrypt.hash(password, 10); }
     const updateFields = [];
     const values = [];
-    if (req.file)
+    let profile_pic = '';
+    if (req.files)
     {
-      const key = `images/${Date.now()}-${req.file.originalname}`
+     
+      const key = `images/${Date.now()}-${req.files[0].originalname}`
       const bucket = 'greyfundr'
-      const body = req.file.buffer;
-      const type = req.file.mimetype
+      const body = req.files[0].buffer;
+      const type = req.files[0].mimetype
 
       const saved = await saveimage(bucket,key,body);
       console.log(saved)
+      profile_pic = key;
 
     }
     if (first_name) {
@@ -118,21 +131,26 @@ const updateUser  = async (req, res) => {
       updateFields.push('username = ?');
       values.push(username); // Use hashedPassword in production
     }
-    if (profile_pic) {
+    if(profile_pic)
+    {
       updateFields.push('profile_pic = ?');
       values.push(profile_pic); // Use hashedPassword in production
+
     }
+    
     values.push(id);
 
-    const [result] = await db.execute(
+    const [result] = await pool.execute(
       `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
       values
     );
 
+    console.log(result);
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'User  not found' });
     }
-    res.status(200).json({ message: 'User  updated successfully' });
+    res.status(200).json({ message: 'User  updated successfully', profile: profile_pic });
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'Email already exists' });
@@ -143,12 +161,15 @@ const updateUser  = async (req, res) => {
 };
 
 const saveimage = async (bucket, key, body ) => {
+  
 const upload = new Upload({
           client: r2,
           params: {
             Bucket: bucket,
             Key: key,
-            Body: body, // The readable stream
+            Body: body, 
+            
+            // The readable stream
             // You can add other S3 PutObjectCommand parameters here, e.g., ContentType
             // ContentType: 'application/octet-stream',
           },

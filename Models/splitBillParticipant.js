@@ -80,6 +80,10 @@ const SplitBillParticipant = sequelize.define(
       allowNull: false,
       defaultValue: 0,
     },
+    payment_link: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     invite_code: {
       type: DataTypes.STRING(12),
       allowNull: true,
