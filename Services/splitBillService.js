@@ -506,59 +506,6 @@ class SplitBillService {
     };
   }
 
-  // static async getBillById(billId, userId = null) {
-  //   const bill = await SplitBill.findByPk(billId, {
-  //     include: [
-  //       {
-  //         model: SplitBillParticipant,
-  //         as: "participants",
-  //         include: [
-  //           {
-  //             model: Payment,
-  //             as: "payments",
-  //             attributes: ["id", "amount", "payment_method", "created_at"],
-  //           },
-  //         ],
-  //       },
-  //       // {
-  //       //   model: SplitBillActivity,
-  //       //   as: "activities",
-  //       //   order: [["created_at", "DESC"]],
-  //       //   limit: 10,
-  //       // },
-  //     ],
-  //   });
-
-  //   if (!bill) {
-  //     throw new AppError("Bill not found", 404);
-  //   }
-
-  //   if (userId) {
-  //     const isCreator = bill.creator_id === userId;
-  //     const isParticipant = bill.participants.some((p) => p.user_id === userId);
-
-  //     if (!isCreator && !isParticipant) {
-  //       throw new AppError("You don't have access to this bill", 403);
-  //     }
-  //   }
-
-  //   const amountRaised = parseFloat(bill.total_paid);
-  //   const percentageComplete = (
-  //     (amountRaised / parseFloat(bill.amount)) *
-  //     100
-  //   ).toFixed(2);
-
-  //   return {
-  //     ...bill.toJSON(),
-  //     amount_raised: amountRaised.toFixed(2),
-  //     percentage_complete: percentageComplete,
-  //     is_overdue:
-  //       bill.due_date &&
-  //       new Date(bill.due_date) < new Date() &&
-  //       bill.status === "active",
-  //   };
-  // }
-
   static async applyPayment(
     participantId,
     amount,
@@ -682,6 +629,136 @@ class SplitBillService {
       return {
         participantId,
         billId: participant.split_bill_id,
+        amountPaid: newPaid,
+        amountOwed: required,
+        remainingAmount: Math.max(0, required - newPaid),
+        participantPaidOff: isSettled,
+        splitBillTotalPaid: newTotalPaid,
+        billCompleted: isBillCompleted,
+        paymentId: payment.id,
+      };
+    });
+  }
+
+  static async applyGuestPayment(participantId, amount, paymentDetails = {}) {
+    return await sequelize.transaction(async (transaction) => {
+      const participant = await SplitBillParticipant.findOne({
+        where: { id: participantId },
+        include: [{ model: SplitBill, as: "bill" }],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!participant) {
+        throw new AppError("Participant not found", 404);
+      }
+
+      if (participant.bill.status === "cancelled") {
+        throw new AppError("Cannot make payment to a cancelled bill", 400);
+      }
+
+      if (participant.bill.status === "completed") {
+        throw new AppError("Bill is already completed", 400);
+      }
+
+      const incoming = parseFloat(amount);
+      if (isNaN(incoming) || incoming <= 0) {
+        throw new AppError("Payment amount must be greater than zero", 400);
+      }
+
+      const required = parseFloat(participant.amount_owed);
+      const paid = parseFloat(participant.amount_paid);
+      const remaining = required - paid;
+
+      if (incoming > remaining + 0.01) {
+        throw new AppError(
+          `Payment exceeds remaining amount. Remaining: ${remaining.toFixed(
+            2
+          )}`,
+          400
+        );
+      }
+
+      const payment = await Payment.create(
+        {
+          participant_id: participantId,
+          payer_id: null,
+          amount: incoming,
+          currency: participant.bill.currency,
+          payment_method: paymentDetails.payment_method || null,
+          transaction_reference: paymentDetails.transaction_reference || null,
+          payment_status: paymentDetails.payment_status || "completed",
+          payment_gateway: paymentDetails.payment_gateway || null,
+          metadata: {
+            ...paymentDetails.metadata,
+            guest_payer: {
+              name: participant.guest_name || "Guest",
+              email: participant.guest_email || null,
+              phone: participant.guest_phone || null,
+            },
+          },
+          notes: paymentDetails.notes || null,
+        },
+        { transaction }
+      );
+
+      const newPaid = paid + incoming;
+      const isSettled = newPaid >= required - 0.01;
+
+      await participant.update(
+        {
+          amount_paid: newPaid,
+          paid: isSettled,
+          status: isSettled ? "PAID" : newPaid > 0 ? "PARTIAL" : "UNPAID",
+          paid_at: isSettled ? new Date() : participant.paid_at,
+        },
+        { transaction }
+      );
+
+      const splitBill = participant.bill;
+      const newTotalPaid = parseFloat(splitBill.total_paid) + incoming;
+      const isBillCompleted =
+        newTotalPaid >= parseFloat(splitBill.amount) - 0.01;
+
+      await splitBill.update(
+        {
+          total_paid: newTotalPaid,
+          status: isBillCompleted ? "completed" : splitBill.status,
+        },
+        { transaction }
+      );
+
+      await SplitBillActivity.create(
+        {
+          split_bill_id: splitBill.id,
+          actor_id: null,
+          action_type: "payment_made",
+          description: `Guest payment of ${incoming} made by ${participant.guest_name}`,
+          metadata: {
+            amount: incoming,
+            participantId,
+            paymentId: payment.id,
+          },
+        },
+        { transaction }
+      );
+
+      if (isBillCompleted) {
+        await SplitBillActivity.create(
+          {
+            split_bill_id: splitBill.id,
+            actor_id: null,
+            action_type: "completed",
+            description: "Bill completed - all payments received",
+          },
+          { transaction }
+        );
+      }
+
+      return {
+        participantId,
+        billId: participant.split_bill_id,
+        amount,
         amountPaid: newPaid,
         amountOwed: required,
         remainingAmount: Math.max(0, required - newPaid),
@@ -2083,6 +2160,11 @@ class SplitBillService {
 
       return bill;
     });
+  }
+
+  static generateLink(participantId) {
+    const baseUrl = process.env.APP_BASE_URL || "https://api.greyfundr.com";
+    return `${baseUrl}/split-bill/pay/${participantId}`;
   }
 }
 

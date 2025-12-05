@@ -216,6 +216,29 @@ const applyPayment = async (req, res, next) => {
   }
 };
 
+const payAsGuest = async (req, res, next) => {
+  try {
+    const participantId = req.params.id;
+    const { amount, paymentDetails } = req.body;
+
+    const result = await SplitBillService.applyGuestPayment(
+      participantId,
+      amount,
+      paymentDetails
+    );
+
+    await NotificationService.paymentAppliedAsGuest(result, participantId);
+
+    return res.status(200).json({
+      status: "success",
+      message: "Guest payment applied successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const finalizeBill = async (req, res, next) => {
   try {
     const { id: billId } = req.params;
@@ -354,6 +377,7 @@ module.exports = {
   addParticipant,
   removeParticipant,
   applyPayment,
+  payAsGuest,
   finalizeBill,
   getParticipantStatus,
   cancelBill,
