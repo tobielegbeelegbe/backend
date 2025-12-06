@@ -32,15 +32,19 @@ const { Upload } = require("@aws-sdk/lib-storage");
 
 // Get all Campaigns
 const getCampaigns = async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const USERS_PER_PAGE = 5;
+  const offset = (page - 1) * USERS_PER_PAGE;
+  console.log(req.query.page);
+  console.log(page);
+  console.log(offset);
+
   try {
       
-           const con = await pool.getConnection();
-           const sql = "SELECT * FROM campaigns"
-           const result = await con.execute(sql);
+          const result = await pool.query('SELECT * FROM campaigns  LIMIT ? OFFSET ?', [ USERS_PER_PAGE, offset]);
 
-           console.log(result); // result will contain the fetched data
-           await con.release();
-            res.send(result);
+          console.log(result);
+          res.send(result);
           
              // res.status(200).json(result);
       } catch (error) {
@@ -229,10 +233,7 @@ const createCampaign  = async (req, res) => {
     budgetAsString = JSON.stringify(budgets);
 
   }
- 
 
-
- 
 
   if(moffers != null)
   {
@@ -292,23 +293,19 @@ const createCampaign  = async (req, res) => {
       console.log(result);
      console.log(stringImages);
 
-     if(result)
-     {
-        const budgetid = await saveBudget();
-        
-     }
-      
+     
+     const message = 'You were added as a host to a new campaign';
+     const creatorMessage = 'Your campaign Was Created Successfully';
+     const type = 'campaign'
      if(stakeholders.length > 0)
      {
-      const message = 'You were added as a host to a new campaign';
-      const type = 'campaign'
+      
        for (const product of stakeholder) {
-        console.log(product.id);
-        console.log(result[0].insertId);
         Host.createHost(product.id,result[0].insertId);
         Notify.createNotification(product.id,message,type,result[0].insertId);
        }
     }
+    Notify.createNotification(id,creatorMessage,type,result[0].insertId);
   
      
       
